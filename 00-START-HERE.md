@@ -61,12 +61,12 @@ This is your **single entry point** to the HGE Notifier project. Everything you 
 ## 🚀 Quick Commands
 
 Run all tests:
-\\\ash
+\\\bash
 pytest tests/ -q  # Result: 287 passed
 \\\
 
 Check coverage:
-\\\ash
+\\\bash
 pytest tests/ --cov=src --cov-report=term-missing  # Result: 86%
 \\\
 
