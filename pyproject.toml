@@ -1,0 +1,65 @@
+[build-system]
+requires = ["setuptools>=65.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "hge-notifier"
+version = "0.1.0"
+description = "Monitor Elite Dangerous EDDN for High Grade Emission signals"
+readme = "README.md"
+requires-python = ">=3.9"
+authors = [
+    {name = "Elite Dangerous HGE Community", email = "contact@example.com"},
+]
+license = {text = "MIT"}
+keywords = ["elite-dangerous", "eddn", "hge", "notification"]
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "License :: OSI Approved :: MIT License",
+    "Intended Audience :: End Users/Desktop",
+]
+
+dependencies = [
+    "flask>=2.3.0",
+    "requests>=2.31.0",
+    "python-dotenv>=1.0.0",
+    "pyzmq>=25.0.0",
+    "watchdog>=3.0.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.4.0",
+    "pytest-cov>=4.1.0",
+    "flake8>=6.0.0",
+    "black>=23.7.0",
+    "mypy>=1.4.0",
+    "isort>=5.12.0",
+]
+
+[project.scripts]
+hge-notifier = "hge_notifier.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.black]
+line-length = 100
+target-version = ['py39']
+
+[tool.isort]
+profile = "black"
+line_length = 100
+
+[tool.mypy]
+python_version = "3.9"
+warn_return_any = true
+warn_unused_configs = true
+disallow_untyped_defs = false
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "--cov=src --cov-report=term-missing"
