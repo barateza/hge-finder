@@ -123,6 +123,97 @@ def create_app(manager: HGENotifierManager, ws_manager: WebSocketManager | None 
             logger.error(f"Error clearing notifications: {e}")
             return jsonify({"status": "error", "message": str(e)}), 500
 
+    @app.route("/api/timeline")
+    def api_timeline() -> Union[Response, Tuple[Response, int]]:
+        """Get HGE signal detection timeline data."""
+        try:
+            limit = request.args.get("limit", 50, type=int)
+            history = manager.notification_manager.get_notification_history(count=limit)
+            
+            timeline_data = []
+            for notification in reversed(history):  # Oldest first
+                timeline_data.append({
+                    "timestamp": notification.timestamp.isoformat(),
+                    "system_name": notification.signal_system,
+                    "distance_ly": notification.distance_ly,
+                    "channel": notification.channel,
+                    "success": notification.success,
+                })
+            
+            return jsonify({
+                "status": "success",
+                "data": timeline_data,
+            })
+        except Exception as e:
+            logger.error(f"Error getting timeline: {e}")
+            return jsonify({"status": "error", "message": str(e)}), 500
+
+    @app.route("/api/timeline/summary")
+    def api_timeline_summary() -> Union[Response, Tuple[Response, int]]:
+        """Get timeline summary statistics."""
+        try:
+            history = manager.notification_manager.get_notification_history(count=100)
+            
+            if not history:
+                return jsonify({
+                    "status": "success",
+                    "data": {
+                        "total_signals": 0,
+                        "avg_distance": 0,
+                        "min_distance": 0,
+                        "max_distance": 0,
+                        "hourly_distribution": {},
+                    }
+                })
+            
+            distances = [n.distance_ly for n in history if n.distance_ly is not None]
+            hourly = {}
+            
+            for notification in history:
+                hour = notification.timestamp.strftime("%H:00")
+                hourly[hour] = hourly.get(hour, 0) + 1
+            
+            return jsonify({
+                "status": "success",
+                "data": {
+                    "total_signals": len(history),
+                    "avg_distance": round(sum(distances) / len(distances), 2) if distances else 0,
+                    "min_distance": round(min(distances), 2) if distances else 0,
+                    "max_distance": round(max(distances), 2) if distances else 0,
+                    "hourly_distribution": hourly,
+                }
+            })
+        except Exception as e:
+            logger.error(f"Error getting timeline summary: {e}")
+            return jsonify({"status": "error", "message": str(e)}), 500
+
+    @app.route("/api/timeline/trends")
+    def api_timeline_trends() -> Union[Response, Tuple[Response, int]]:
+        """Get distance trends data for charting."""
+        try:
+            history = manager.notification_manager.get_notification_history(count=100)
+            
+            trends = []
+            for notification in reversed(history):
+                trends.append({
+                    "timestamp": notification.timestamp.isoformat(),
+                    "distance": notification.distance_ly or 0,
+                    "system": notification.signal_system,
+                })
+            
+            return jsonify({
+                "status": "success",
+                "data": trends,
+            })
+        except Exception as e:
+            logger.error(f"Error getting trends: {e}")
+            return jsonify({"status": "error", "message": str(e)}), 500
+
+    @app.route("/timeline")
+    def timeline_page() -> str:
+        """Render the timeline/charts page."""
+        return render_template_string(TIMELINE_TEMPLATE)
+
     @app.route("/notifications")
     def notifications_page() -> str:
         """Render the notifications page."""
@@ -428,6 +519,11 @@ HTML_TEMPLATE = """
 <body>
     <div class="container">
         <h1>🎮 HGE NOTIFIER</h1>
+        
+        <div style="text-align: center; margin-bottom: 20px; display: flex; gap: 10px; justify-content: center; flex-wrap: wrap;">
+            <a href="/timeline" style="background: #001a00; border: 2px solid #00ff00; color: #00ff00; padding: 8px 15px; border-radius: 5px; text-decoration: none; transition: all 0.3s;">📊 Timeline</a>
+            <a href="/notifications" style="background: #001a00; border: 2px solid #00ff00; color: #00ff00; padding: 8px 15px; border-radius: 5px; text-decoration: none; transition: all 0.3s;">📢 Notifications</a>
+        </div>
         
         <div class="status-grid" id="statusGrid">
             <div class="card">
@@ -1474,6 +1570,568 @@ NOTIFICATIONS_TEMPLATE = """
             console.log('📱 Mobile device detected');
             console.log('💡 Swipe down to refresh notifications');
         }
+    </script>
+</body>
+</html>
+"""
+
+
+TIMELINE_TEMPLATE = """
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HGE Timeline - Elite Dangerous</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Courier New', monospace;
+            background: linear-gradient(135deg, #0a0a0a 0%, #1a1a2e 100%);
+            color: #00ff00;
+            min-height: 100vh;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        
+        h1 {
+            text-align: center;
+            margin-bottom: 30px;
+            font-size: 2.5em;
+            text-shadow: 0 0 10px #00ff00;
+        }
+        
+        .timeline-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 30px;
+            gap: 20px;
+            flex-wrap: wrap;
+        }
+        
+        .timeline-nav {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+        
+        .timeline-nav button {
+            background: #001a00;
+            border: 2px solid #00ff00;
+            color: #00ff00;
+            padding: 10px 15px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-family: 'Courier New', monospace;
+            font-size: 0.9em;
+            transition: all 0.3s;
+        }
+        
+        .timeline-nav button:hover {
+            background: #003300;
+            box-shadow: 0 0 10px rgba(0, 255, 0, 0.5);
+        }
+        
+        .timeline-nav button.active {
+            background: #003300;
+            box-shadow: 0 0 15px rgba(0, 255, 0, 0.8);
+        }
+        
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-bottom: 30px;
+        }
+        
+        .stat-card {
+            background: rgba(0, 50, 0, 0.3);
+            border: 2px solid #00ff00;
+            border-radius: 5px;
+            padding: 15px;
+            box-shadow: 0 0 20px rgba(0, 255, 0, 0.2);
+        }
+        
+        .stat-card h3 {
+            font-size: 0.9em;
+            margin-bottom: 10px;
+            color: #00cc00;
+        }
+        
+        .stat-value {
+            font-size: 1.5em;
+            color: #ffff00;
+            font-weight: bold;
+        }
+        
+        .chart-container {
+            background: rgba(0, 50, 0, 0.3);
+            border: 2px solid #00ff00;
+            border-radius: 5px;
+            padding: 20px;
+            margin-bottom: 30px;
+            box-shadow: 0 0 20px rgba(0, 255, 0, 0.2);
+        }
+        
+        .chart-title {
+            margin-bottom: 20px;
+            font-size: 1.3em;
+            border-bottom: 1px solid #00ff00;
+            padding-bottom: 10px;
+        }
+        
+        .chart-wrapper {
+            position: relative;
+            height: 400px;
+            margin-bottom: 20px;
+        }
+        
+        .timeline-list {
+            background: rgba(0, 50, 0, 0.3);
+            border: 2px solid #00ff00;
+            border-radius: 5px;
+            padding: 20px;
+            max-height: 600px;
+            overflow-y: auto;
+            box-shadow: 0 0 20px rgba(0, 255, 0, 0.2);
+        }
+        
+        .timeline-list h3 {
+            margin-bottom: 15px;
+            font-size: 1.2em;
+            color: #00cc00;
+        }
+        
+        .timeline-entry {
+            background: rgba(0, 30, 0, 0.5);
+            border-left: 3px solid #00ff00;
+            padding: 12px;
+            margin-bottom: 10px;
+            border-radius: 3px;
+        }
+        
+        .timeline-entry .time {
+            color: #00cc00;
+            font-size: 0.9em;
+            margin-bottom: 5px;
+        }
+        
+        .timeline-entry .system {
+            color: #ffff00;
+            font-weight: bold;
+            margin: 5px 0;
+        }
+        
+        .timeline-entry .distance {
+            color: #00ff00;
+            font-size: 0.95em;
+        }
+        
+        .empty-message {
+            text-align: center;
+            padding: 40px 20px;
+            color: #ff6600;
+        }
+        
+        .connection-status {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            background: rgba(0, 50, 0, 0.3);
+            border: 2px solid #00ff00;
+            padding: 10px 15px;
+            border-radius: 5px;
+            font-size: 0.9em;
+        }
+        
+        .connection-status.connected {
+            color: #00ff00;
+        }
+        
+        .connection-status.disconnected {
+            color: #ff6600;
+        }
+        
+        .nav-link {
+            display: inline-block;
+            background: #001a00;
+            border: 2px solid #00ff00;
+            color: #00ff00;
+            padding: 8px 15px;
+            border-radius: 5px;
+            text-decoration: none;
+            margin-right: 10px;
+            transition: all 0.3s;
+        }
+        
+        .nav-link:hover {
+            background: #003300;
+            box-shadow: 0 0 10px rgba(0, 255, 0, 0.5);
+        }
+        
+        /* Chart.js theme customization */
+        :root {
+            --chart-color-primary: #00ff00;
+            --chart-color-secondary: #ffff00;
+            --chart-color-bg: rgba(0, 50, 0, 0.3);
+        }
+        
+        /* Mobile responsive */
+        @media (max-width: 768px) {
+            h1 { font-size: 1.8em; }
+            .stats-grid { grid-template-columns: repeat(2, 1fr); }
+            .chart-wrapper { height: 300px; }
+            .timeline-list { max-height: 400px; }
+        }
+        
+        @media (max-width: 600px) {
+            h1 { font-size: 1.4em; }
+            body { padding: 10px; }
+            .stats-grid { grid-template-columns: 1fr; }
+            .timeline-header { flex-direction: column; }
+            .chart-wrapper { height: 250px; }
+            .timeline-list { max-height: 300px; }
+            .timeline-nav { width: 100%; }
+            .timeline-nav button { flex: 1; }
+        }
+        
+        @media (max-width: 360px) {
+            h1 { font-size: 1.2em; }
+            .stat-card { padding: 10px; }
+            .stat-value { font-size: 1.2em; }
+        }
+        
+        @media (hover: none) and (pointer: coarse) {
+            button {
+                min-height: 44px;
+                padding: 12px 20px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🎯 HGE Detection Timeline</h1>
+        
+        <div class="timeline-header">
+            <div class="timeline-nav">
+                <button onclick="switchView('trends')">📈 Distance Trends</button>
+                <button onclick="switchView('hourly')">⏱️ Hourly Distribution</button>
+                <button onclick="switchView('list')">📋 Signal List</button>
+            </div>
+            <a href="/" class="nav-link">← Back to Dashboard</a>
+        </div>
+        
+        <div class="stats-grid">
+            <div class="stat-card">
+                <h3>Total Signals Detected</h3>
+                <div class="stat-value" id="statTotal">0</div>
+            </div>
+            <div class="stat-card">
+                <h3>Average Distance</h3>
+                <div class="stat-value" id="statAvg">0 ly</div>
+            </div>
+            <div class="stat-card">
+                <h3>Minimum Distance</h3>
+                <div class="stat-value" id="statMin">0 ly</div>
+            </div>
+            <div class="stat-card">
+                <h3>Maximum Distance</h3>
+                <div class="stat-value" id="statMax">0 ly</div>
+            </div>
+        </div>
+        
+        <!-- Distance Trends Chart -->
+        <div id="trendsView" class="chart-container">
+            <div class="chart-title">📊 Distance Trends Over Time</div>
+            <div class="chart-wrapper">
+                <canvas id="trendsChart"></canvas>
+            </div>
+        </div>
+        
+        <!-- Hourly Distribution Chart -->
+        <div id="hourlyView" class="chart-container" style="display: none;">
+            <div class="chart-title">🕐 Hourly Signal Distribution</div>
+            <div class="chart-wrapper">
+                <canvas id="hourlyChart"></canvas>
+            </div>
+        </div>
+        
+        <!-- Timeline List -->
+        <div id="listView" class="chart-container" style="display: none;">
+            <div class="timeline-list">
+                <h3>📍 Signal Detection History</h3>
+                <div id="timelineListContainer"></div>
+            </div>
+        </div>
+        
+        <div class="connection-status" id="connectionStatus">
+            <span id="statusText">🔌 Connecting...</span>
+        </div>
+    </div>
+    
+    <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
+    <script>
+        const statusEndpoint = "/api/status";
+        const timelineEndpoint = "/api/timeline";
+        const summaryEndpoint = "/api/timeline/summary";
+        const trendsEndpoint = "/api/timeline/trends";
+        
+        let chart1 = null;
+        let chart2 = null;
+        let currentView = 'trends';
+        let isConnected = false;
+        
+        const socket = io();
+        
+        socket.on('connect', () => {
+            isConnected = true;
+            updateConnectionStatus();
+            console.log('✅ Timeline connected to WebSocket');
+        });
+        
+        socket.on('disconnect', () => {
+            isConnected = false;
+            updateConnectionStatus();
+            console.log('❌ Timeline disconnected from WebSocket');
+        });
+        
+        socket.on('status', (data) => {
+            console.log('📡 Status update received');
+            loadTimelineData();
+        });
+        
+        socket.on('hge_signal', (data) => {
+            console.log('🔔 New signal received - updating timeline');
+            loadTimelineData();
+        });
+        
+        function updateConnectionStatus() {
+            const statusEl = document.getElementById('connectionStatus');
+            const textEl = document.getElementById('statusText');
+            
+            if (isConnected) {
+                statusEl.className = 'connection-status connected';
+                textEl.textContent = '🟢 Real-time connected';
+            } else {
+                statusEl.className = 'connection-status disconnected';
+                textEl.textContent = '🟡 Polling fallback';
+            }
+        }
+        
+        function switchView(view) {
+            currentView = view;
+            
+            // Update button states
+            document.querySelectorAll('.timeline-nav button').forEach(btn => {
+                btn.classList.remove('active');
+            });
+            event.target.classList.add('active');
+            
+            // Hide all views
+            document.getElementById('trendsView').style.display = 'none';
+            document.getElementById('hourlyView').style.display = 'none';
+            document.getElementById('listView').style.display = 'none';
+            
+            // Show selected view
+            if (view === 'trends') {
+                document.getElementById('trendsView').style.display = 'block';
+                if (!chart1) loadTrendsChart();
+            } else if (view === 'hourly') {
+                document.getElementById('hourlyView').style.display = 'block';
+                if (!chart2) loadHourlyChart();
+            } else if (view === 'list') {
+                document.getElementById('listView').style.display = 'block';
+                loadTimelineList();
+            }
+        }
+        
+        async function loadTimelineData() {
+            try {
+                // Load summary stats
+                const summaryResponse = await fetch(summaryEndpoint);
+                const summaryData = await summaryResponse.json();
+                
+                if (summaryData.status === 'success') {
+                    const stats = summaryData.data;
+                    document.getElementById('statTotal').textContent = stats.total_signals;
+                    document.getElementById('statAvg').textContent = stats.avg_distance.toFixed(2) + ' ly';
+                    document.getElementById('statMin').textContent = stats.min_distance.toFixed(2) + ' ly';
+                    document.getElementById('statMax').textContent = stats.max_distance.toFixed(2) + ' ly';
+                }
+                
+                // Reload current view
+                if (currentView === 'trends') {
+                    loadTrendsChart();
+                } else if (currentView === 'hourly') {
+                    loadHourlyChart();
+                } else if (currentView === 'list') {
+                    loadTimelineList();
+                }
+            } catch (error) {
+                console.error('Error loading timeline data:', error);
+            }
+        }
+        
+        async function loadTrendsChart() {
+            try {
+                const response = await fetch(trendsEndpoint);
+                const data = await response.json();
+                
+                if (data.status !== 'success' || !data.data.length) {
+                    document.getElementById('trendsChart').parentElement.innerHTML = '<div class="empty-message">No trend data available</div>';
+                    return;
+                }
+                
+                const trends = data.data;
+                const labels = trends.map(t => new Date(t.timestamp).toLocaleString());
+                const distances = trends.map(t => t.distance);
+                
+                // Destroy existing chart if present
+                if (chart1) chart1.destroy();
+                
+                const ctx = document.getElementById('trendsChart');
+                chart1 = new Chart(ctx, {
+                    type: 'line',
+                    data: {
+                        labels: labels,
+                        datasets: [{
+                            label: 'Distance (LY)',
+                            data: distances,
+                            borderColor: '#00ff00',
+                            backgroundColor: 'rgba(0, 255, 0, 0.1)',
+                            borderWidth: 2,
+                            fill: true,
+                            tension: 0.4,
+                            pointBackgroundColor: '#ffff00',
+                            pointBorderColor: '#00ff00',
+                            pointRadius: 5,
+                            pointHoverRadius: 7,
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: { labels: { color: '#00ff00' } }
+                        },
+                        scales: {
+                            y: {
+                                beginAtZero: true,
+                                ticks: { color: '#00ff00' },
+                                grid: { color: 'rgba(0, 255, 0, 0.1)' },
+                                title: { display: true, text: 'Distance (Light Years)', color: '#00ff00' }
+                            },
+                            x: {
+                                ticks: { color: '#00ff00' },
+                                grid: { color: 'rgba(0, 255, 0, 0.1)' }
+                            }
+                        }
+                    }
+                });
+            } catch (error) {
+                console.error('Error loading trends chart:', error);
+            }
+        }
+        
+        async function loadHourlyChart() {
+            try {
+                const response = await fetch(summaryEndpoint);
+                const data = await response.json();
+                
+                if (data.status !== 'success') {
+                    document.getElementById('hourlyChart').parentElement.innerHTML = '<div class="empty-message">No hourly data available</div>';
+                    return;
+                }
+                
+                const hourly = data.data.hourly_distribution || {};
+                const labels = Object.keys(hourly).sort();
+                const values = labels.map(hour => hourly[hour]);
+                
+                // Destroy existing chart if present
+                if (chart2) chart2.destroy();
+                
+                const ctx = document.getElementById('hourlyChart');
+                chart2 = new Chart(ctx, {
+                    type: 'bar',
+                    data: {
+                        labels: labels,
+                        datasets: [{
+                            label: 'Signals per Hour',
+                            data: values,
+                            backgroundColor: '#00ff00',
+                            borderColor: '#ffff00',
+                            borderWidth: 2,
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: { labels: { color: '#00ff00' } }
+                        },
+                        scales: {
+                            y: {
+                                beginAtZero: true,
+                                ticks: { color: '#00ff00' },
+                                grid: { color: 'rgba(0, 255, 0, 0.1)' }
+                            },
+                            x: {
+                                ticks: { color: '#00ff00' },
+                                grid: { color: 'rgba(0, 255, 0, 0.1)' }
+                            }
+                        }
+                    }
+                });
+            } catch (error) {
+                console.error('Error loading hourly chart:', error);
+            }
+        }
+        
+        async function loadTimelineList() {
+            try {
+                const response = await fetch(timelineEndpoint + '?limit=100');
+                const data = await response.json();
+                
+                const container = document.getElementById('timelineListContainer');
+                
+                if (data.status !== 'success' || !data.data.length) {
+                    container.innerHTML = '<div class="empty-message">No signal history available</div>';
+                    return;
+                }
+                
+                container.innerHTML = data.data.map(entry => `
+                    <div class="timeline-entry">
+                        <div class="time">⏰ ${new Date(entry.timestamp).toLocaleString()}</div>
+                        <div class="system">🎯 ${entry.system_name}</div>
+                        <div class="distance">📏 ${entry.distance_ly ? entry.distance_ly.toFixed(2) + ' ly' : 'Unknown'}</div>
+                    </div>
+                `).join('');
+            } catch (error) {
+                console.error('Error loading timeline list:', error);
+            }
+        }
+        
+        // Initial load
+        loadTimelineData();
+        
+        // Periodic refresh (only when disconnected)
+        setInterval(() => {
+            if (!isConnected) {
+                loadTimelineData();
+            }
+        }, 30000);
     </script>
 </body>
 </html>
