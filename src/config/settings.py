@@ -42,6 +42,23 @@ class Settings:
             os.getenv("LOG_FILE")
         )
 
+        # Notification Settings
+        self.notifications_enabled: bool = self._parse_bool(
+            os.getenv("NOTIFICATIONS_ENABLED", "false")
+        )
+        self.discord_webhook_url: Optional[str] = os.getenv(
+            "DISCORD_WEBHOOK_URL"
+        )
+        self.alert_max_distance: float = float(
+            os.getenv("ALERT_MAX_DISTANCE", "50.0")
+        )
+        self.alert_max_age: float = float(
+            os.getenv("ALERT_MAX_AGE", "24.0")
+        )
+        self.notification_cooldown_seconds: int = int(
+            os.getenv("NOTIFICATION_COOLDOWN_SECONDS", "60")
+        )
+
     @staticmethod
     def _parse_bool(value: str) -> bool:
         """Parse string to boolean."""

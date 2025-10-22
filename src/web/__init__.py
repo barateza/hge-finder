@@ -1,7 +1,7 @@
 """Flask web interface for HGE Notifier."""
 
 import logging
-from flask import Flask, jsonify, render_template_string
+from flask import Flask, jsonify, render_template_string, request
 
 from src.core import HGENotifierManager
 
@@ -32,6 +32,62 @@ def create_app(manager: HGENotifierManager) -> Flask:
         except Exception as e:
             logger.error(f"Error during refresh: {e}")
             return jsonify({"status": "error", "message": str(e)}), 500
+
+    @app.route("/api/notifications")
+    def api_notifications() -> dict:
+        """Get notification history."""
+        try:
+            count = request.args.get("count", 10, type=int)
+            history = manager.notification_manager.get_notification_history(count=count)
+            return jsonify({
+                "status": "success",
+                "data": [
+                    {
+                        "system_name": notification.signal_system,
+                        "distance_ly": notification.distance_ly,
+                        "timestamp": notification.timestamp.isoformat(),
+                        "channel": notification.channel,
+                        "success": notification.success,
+                        "error": notification.error,
+                    }
+                    for notification in history
+                ],
+            })
+        except Exception as e:
+            logger.error(f"Error getting notifications: {e}")
+            return jsonify({"status": "error", "message": str(e)}), 500
+
+    @app.route("/api/notifications/stats")
+    def api_notifications_stats() -> dict:
+        """Get notification statistics."""
+        try:
+            stats = manager.notification_manager.get_stats()
+            return jsonify({
+                "status": "success",
+                "data": {
+                    "total": stats.get("total", 0),
+                    "successful": stats.get("successful", 0),
+                    "failed": stats.get("failed", 0),
+                },
+            })
+        except Exception as e:
+            logger.error(f"Error getting notification stats: {e}")
+            return jsonify({"status": "error", "message": str(e)}), 500
+
+    @app.route("/api/notifications/clear", methods=["POST"])
+    def api_notifications_clear() -> dict:
+        """Clear notification history."""
+        try:
+            manager.notification_manager.in_app.clear_history()
+            return jsonify({"status": "success", "message": "Notification history cleared"})
+        except Exception as e:
+            logger.error(f"Error clearing notifications: {e}")
+            return jsonify({"status": "error", "message": str(e)}), 500
+
+    @app.route("/notifications")
+    def notifications_page() -> str:
+        """Render the notifications page."""
+        return render_template_string(NOTIFICATIONS_TEMPLATE)
 
     return app
 
@@ -314,6 +370,306 @@ HTML_TEMPLATE = """
         
         // Auto-refresh every 10 seconds
         setInterval(updateStatus, autoRefreshInterval);
+    </script>
+</body>
+</html>
+"""
+
+
+NOTIFICATIONS_TEMPLATE = """
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Notifications - HGE Notifier</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Courier New', monospace;
+            background: linear-gradient(135deg, #0a0a0a 0%, #1a1a2e 100%);
+            color: #00ff00;
+            min-height: 100vh;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        
+        h1 {
+            text-align: center;
+            margin-bottom: 30px;
+            font-size: 2.5em;
+            text-shadow: 0 0 10px #00ff00;
+        }
+        
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+        
+        .stat-card {
+            background: rgba(0, 50, 0, 0.3);
+            border: 2px solid #00ff00;
+            border-radius: 5px;
+            padding: 20px;
+            text-align: center;
+            box-shadow: 0 0 20px rgba(0, 255, 0, 0.2);
+        }
+        
+        .stat-card h3 {
+            font-size: 0.9em;
+            margin-bottom: 10px;
+            border-bottom: 1px solid #00ff00;
+            padding-bottom: 10px;
+        }
+        
+        .stat-value {
+            font-size: 2.5em;
+            color: #ffff00;
+            font-weight: bold;
+        }
+        
+        .history-section {
+            background: rgba(0, 50, 0, 0.3);
+            border: 2px solid #00ff00;
+            border-radius: 5px;
+            padding: 20px;
+            box-shadow: 0 0 20px rgba(0, 255, 0, 0.2);
+            margin-bottom: 20px;
+        }
+        
+        .history-section h2 {
+            margin-bottom: 20px;
+            border-bottom: 2px solid #00ff00;
+            padding-bottom: 10px;
+        }
+        
+        .notification-item {
+            border-left: 4px solid #00ff00;
+            padding: 15px;
+            margin-bottom: 15px;
+            background: rgba(0, 100, 0, 0.2);
+            border-radius: 3px;
+        }
+        
+        .notification-item p {
+            margin: 5px 0;
+            font-size: 0.95em;
+        }
+        
+        .notification-system {
+            font-size: 1.2em;
+            font-weight: bold;
+            color: #ffff00;
+            margin-bottom: 8px;
+        }
+        
+        .notification-distance {
+            color: #00ff00;
+        }
+        
+        .notification-timestamp {
+            color: #008800;
+            font-size: 0.85em;
+        }
+        
+        .notification-channel {
+            display: inline-block;
+            background: #001a00;
+            border: 1px solid #00ff00;
+            padding: 3px 8px;
+            border-radius: 3px;
+            font-size: 0.8em;
+            margin-top: 8px;
+        }
+        
+        .success {
+            border-left-color: #00ff00;
+            color: #00ff00;
+        }
+        
+        .failed {
+            border-left-color: #ff0000;
+            color: #ff6666;
+        }
+        
+        button {
+            background: #001a00;
+            border: 2px solid #00ff00;
+            color: #00ff00;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-family: 'Courier New', monospace;
+            font-size: 1em;
+            margin-top: 20px;
+            margin-right: 10px;
+            transition: all 0.3s;
+        }
+        
+        button:hover {
+            background: #003300;
+            box-shadow: 0 0 10px rgba(0, 255, 0, 0.5);
+        }
+        
+        button:active {
+            transform: scale(0.98);
+        }
+        
+        .button-group {
+            text-align: center;
+        }
+        
+        .empty-message {
+            text-align: center;
+            color: #008800;
+            padding: 30px;
+            font-size: 1.1em;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>📬 NOTIFICATIONS</h1>
+        
+        <div class="stats-grid" id="statsGrid">
+            <div class="stat-card">
+                <h3>Total</h3>
+                <div class="stat-value" id="statTotal">0</div>
+            </div>
+            <div class="stat-card">
+                <h3>Successful</h3>
+                <div class="stat-value" id="statSuccessful">0</div>
+            </div>
+            <div class="stat-card">
+                <h3>Failed</h3>
+                <div class="stat-value" id="statFailed">0</div>
+            </div>
+        </div>
+        
+        <div class="history-section">
+            <h2>📋 Notification History</h2>
+            <div id="historyContainer" class="empty-message">
+                Loading notifications...
+            </div>
+        </div>
+        
+        <div class="button-group">
+            <button onclick="refreshNotifications()">🔄 Refresh</button>
+            <button onclick="clearNotifications()" style="background: #330000; border-color: #ff0000; color: #ff0000;">🗑️ Clear History</button>
+        </div>
+    </div>
+
+    <script>
+        const statsEndpoint = "/api/notifications/stats";
+        const historyEndpoint = "/api/notifications";
+        const autoRefreshInterval = 5000; // 5 seconds
+        
+        async function loadNotifications() {
+            try {
+                // Load stats
+                const statsResponse = await fetch(statsEndpoint);
+                const statsData = await statsResponse.json();
+                if (statsData.status === "success") {
+                    document.getElementById("statTotal").textContent = statsData.data.total;
+                    document.getElementById("statSuccessful").textContent = statsData.data.successful;
+                    document.getElementById("statFailed").textContent = statsData.data.failed;
+                }
+                
+                // Load history
+                const historyResponse = await fetch(historyEndpoint + "?count=20");
+                const historyData = await historyResponse.json();
+                if (historyData.status === "success") {
+                    renderHistory(historyData.data);
+                }
+            } catch (error) {
+                console.error("Error loading notifications:", error);
+                document.getElementById("historyContainer").innerHTML = `
+                    <div style="color: #ff0000; text-align: center;">Error loading notifications: ${error.message}</div>
+                `;
+            }
+        }
+        
+        function renderHistory(notifications) {
+            const container = document.getElementById("historyContainer");
+            
+            if (notifications.length === 0) {
+                container.innerHTML = `<div class="empty-message">No notifications yet</div>`;
+                return;
+            }
+            
+            let html = "";
+            for (const notif of notifications) {
+                const timestamp = new Date(notif.timestamp).toLocaleString();
+                const statusClass = notif.success ? "success" : "failed";
+                const statusText = notif.success ? "✓ Success" : "✗ Failed";
+                
+                html += `
+                    <div class="notification-item ${statusClass}">
+                        <div class="notification-system">${notif.system_name}</div>
+                        <p class="notification-distance">
+                            <span style="color: #00ff00;">Distance:</span> ${notif.distance_ly.toFixed(2)} ly
+                        </p>
+                        <p class="notification-timestamp">${timestamp}</p>
+                        <span class="notification-channel">${notif.channel} - ${statusText}</span>
+                        ${notif.error ? `<p style="color: #ff0000; font-size: 0.85em;">Error: ${notif.error}</p>` : ""}
+                    </div>
+                `;
+            }
+            
+            container.innerHTML = html;
+        }
+        
+        async function refreshNotifications() {
+            const btn = event.target;
+            btn.disabled = true;
+            btn.textContent = "⏳ Refreshing...";
+            
+            try {
+                await loadNotifications();
+            } finally {
+                btn.disabled = false;
+                btn.textContent = "🔄 Refresh";
+            }
+        }
+        
+        async function clearNotifications() {
+            if (!confirm("Are you sure you want to clear all notifications?")) {
+                return;
+            }
+            
+            try {
+                const response = await fetch("/api/notifications/clear", { method: "POST" });
+                const data = await response.json();
+                if (data.status === "success") {
+                    document.getElementById("statTotal").textContent = "0";
+                    document.getElementById("statSuccessful").textContent = "0";
+                    document.getElementById("statFailed").textContent = "0";
+                    document.getElementById("historyContainer").innerHTML = `<div class="empty-message">No notifications yet</div>`;
+                } else {
+                    alert("Error clearing notifications: " + data.message);
+                }
+            } catch (error) {
+                console.error("Error clearing notifications:", error);
+                alert("Error clearing notifications: " + error.message);
+            }
+        }
+        
+        // Initial load
+        loadNotifications();
+        
+        // Auto-refresh every 5 seconds
+        setInterval(loadNotifications, autoRefreshInterval);
     </script>
 </body>
 </html>
