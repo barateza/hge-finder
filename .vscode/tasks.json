@@ -1,0 +1,44 @@
+{
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "label": "Create venv",
+            "type": "shell",
+            "command": "powershell",
+            "args": [
+                "-NoProfile",
+                "-Command",
+                "python -m venv .venv"
+            ],
+            "problemMatcher": []
+        },
+        {
+            "label": "Install requirements",
+            "type": "shell",
+            "command": "powershell",
+            "args": [
+                "-NoProfile",
+                "-Command",
+                ". .\\.venv\\Scripts\\Activate.ps1; python -m pip install -r requirements.txt"
+            ],
+            "presentation": {
+                "echo": true,
+                "reveal": "always",
+                "focus": false
+            },
+            "problemMatcher": []
+        },
+        {
+            "label": "Run tests",
+            "type": "shell",
+            "command": "powershell",
+            "args": [
+                "-NoProfile",
+                "-Command",
+                ". .\\.venv\\Scripts\\Activate.ps1; python -m pytest -q"
+            ],
+            "group": "test",
+            "problemMatcher": []
+        }
+    ]
+}
