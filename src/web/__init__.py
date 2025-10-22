@@ -283,19 +283,174 @@ HTML_TEMPLATE = """
         </div>
     </div>
 
+    <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
     <script>
+        // =====================================================
+        // WEBSOCKET CLIENT CONFIGURATION
+        // =====================================================
+        const socket = io();
         const statusEndpoint = "/api/status";
         const refreshEndpoint = "/api/refresh";
-        const autoRefreshInterval = 10000; // 10 seconds
+        
+        // Track connection status
+        let isConnected = false;
+        let autoRefreshTimer = null;
+        
+        // =====================================================
+        // WEBSOCKET CONNECTION HANDLERS
+        // =====================================================
+        socket.on('connect', () => {
+            console.log('✅ Connected to WebSocket server:', socket.id);
+            isConnected = true;
+            updateConnectionStatus(true);
+            
+            // Subscribe to real-time updates
+            socket.emit('subscribe', {
+                channels: ['hge_signal', 'location_update', 'distance_update', 'status']
+            });
+        });
+        
+        socket.on('disconnect', () => {
+            console.log('❌ Disconnected from WebSocket server');
+            isConnected = false;
+            updateConnectionStatus(false);
+        });
+        
+        socket.on('connect_error', (error) => {
+            console.error('Connection error:', error);
+            updateConnectionStatus(false);
+        });
+        
+        // =====================================================
+        // WEBSOCKET EVENT LISTENERS
+        // =====================================================
+        socket.on('hge_signal_update', (data) => {
+            console.log('📡 HGE Signal Update:', data);
+            if (data) {
+                renderHGESignal(data);
+            }
+        });
+        
+        socket.on('location_update', (data) => {
+            console.log('📍 Location Update:', data);
+            if (data) {
+                renderLocation(data);
+            }
+        });
+        
+        socket.on('distance_update', (data) => {
+            console.log('📏 Distance Update:', data);
+            if (data) {
+                renderDistance(data);
+            }
+        });
+        
+        socket.on('status_update', (data) => {
+            console.log('📊 Status Update:', data);
+            if (data) {
+                renderStatus(data);
+            }
+        });
+        
+        // =====================================================
+        // UI UPDATE FUNCTIONS
+        // =====================================================
+        function updateConnectionStatus(connected) {
+            const indicator = document.querySelector('.status-indicator');
+            if (indicator) {
+                if (connected) {
+                    indicator.style.background = '#00ff00';
+                    indicator.title = 'Connected to server';
+                } else {
+                    indicator.style.background = '#ff6600';
+                    indicator.title = 'Disconnected from server';
+                }
+            }
+        }
+        
+        function renderHGESignal(signal) {
+            const grid = document.getElementById("statusGrid");
+            if (!grid) return;
+            
+            let signalCard = grid.querySelector('[data-card="hge-signal"]');
+            if (!signalCard) {
+                signalCard = document.createElement('div');
+                signalCard.className = 'card';
+                signalCard.setAttribute('data-card', 'hge-signal');
+                grid.insertBefore(signalCard, grid.firstChild);
+            }
+            
+            signalCard.innerHTML = `
+                <h2>🔴 HGE Signal</h2>
+                <p><span class="label">System:</span> <span class="value">${signal.system_name}</span></p>
+                <p><span class="label">Age:</span> <span class="value">${signal.age}</span></p>
+                <p><span class="label">Coordinates:</span></p>
+                <div class="coordinates">
+                    X: ${signal.coordinates.x?.toFixed(2) ?? 'N/A'}<br>
+                    Y: ${signal.coordinates.y?.toFixed(2) ?? 'N/A'}<br>
+                    Z: ${signal.coordinates.z?.toFixed(2) ?? 'N/A'}
+                </div>
+            `;
+        }
+        
+        function renderLocation(location) {
+            const grid = document.getElementById("statusGrid");
+            if (!grid) return;
+            
+            let locationCard = grid.querySelector('[data-card="location"]');
+            if (!locationCard) {
+                locationCard = document.createElement('div');
+                locationCard.className = 'card';
+                locationCard.setAttribute('data-card', 'location');
+                grid.appendChild(locationCard);
+            }
+            
+            locationCard.innerHTML = `
+                <h2>📍 Your Location</h2>
+                <p><span class="label">System:</span> <span class="value">${location.system_name}</span></p>
+                <p><span class="label">Coordinates:</span></p>
+                <div class="coordinates">
+                    X: ${location.coordinates.x?.toFixed(2) ?? 'N/A'}<br>
+                    Y: ${location.coordinates.y?.toFixed(2) ?? 'N/A'}<br>
+                    Z: ${location.coordinates.z?.toFixed(2) ?? 'N/A'}
+                </div>
+            `;
+        }
+        
+        function renderDistance(distance) {
+            const grid = document.getElementById("statusGrid");
+            if (!grid) return;
+            
+            let distanceCard = grid.querySelector('[data-card="distance"]');
+            if (!distanceCard) {
+                distanceCard = document.createElement('div');
+                distanceCard.className = 'card';
+                distanceCard.setAttribute('data-card', 'distance');
+                distanceCard.style.gridColumn = '1 / -1';
+                grid.appendChild(distanceCard);
+            }
+            
+            distanceCard.innerHTML = `
+                <h2>📏 Distance to HGE</h2>
+                <div class="distance-large">${distance.formatted}</div>
+                <p style="text-align: center; color: #008800;">
+                    <span class="status-indicator"></span>Last updated: ${new Date().toLocaleTimeString()}
+                </p>
+            `;
+            updateConnectionStatus(isConnected);
+        }
         
         async function updateStatus() {
-            try {
-                const response = await fetch(statusEndpoint);
-                const data = await response.json();
-                renderStatus(data);
-            } catch (error) {
-                console.error("Error fetching status:", error);
-                renderError(error);
+            if (!isConnected) {
+                // Fall back to REST API when WebSocket not available
+                try {
+                    const response = await fetch(statusEndpoint);
+                    const data = await response.json();
+                    renderStatus(data);
+                } catch (error) {
+                    console.error("Error fetching status:", error);
+                    renderError(error);
+                }
             }
         }
         
@@ -374,6 +529,7 @@ HTML_TEMPLATE = """
                     </div>
                 `;
             }
+            updateConnectionStatus(isConnected);
         }
         
         function renderError(error) {
@@ -407,8 +563,9 @@ HTML_TEMPLATE = """
         // Initial load
         updateStatus();
         
-        // Auto-refresh every 10 seconds
-        setInterval(updateStatus, autoRefreshInterval);
+        // Note: Auto-refresh is now driven by WebSocket events
+        // Falls back to polling every 30 seconds if WebSocket unavailable
+        setInterval(updateStatus, 30000);
     </script>
 </body>
 </html>
@@ -609,10 +766,79 @@ NOTIFICATIONS_TEMPLATE = """
         </div>
     </div>
 
+    <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
     <script>
+        // =====================================================
+        // WEBSOCKET CLIENT CONFIGURATION
+        // =====================================================
+        const socket = io();
         const statsEndpoint = "/api/notifications/stats";
         const historyEndpoint = "/api/notifications";
-        const autoRefreshInterval = 5000; // 5 seconds
+        
+        // Track connection status
+        let isConnected = false;
+        
+        // =====================================================
+        // WEBSOCKET CONNECTION HANDLERS
+        // =====================================================
+        socket.on('connect', () => {
+            console.log('✅ Connected to WebSocket server:', socket.id);
+            isConnected = true;
+            updateConnectionStatus(true);
+            
+            // Subscribe to real-time updates
+            socket.emit('subscribe', {
+                channels: ['status']  // Notifications page watches status channel
+            });
+            
+            // Load initial data
+            loadNotifications();
+        });
+        
+        socket.on('disconnect', () => {
+            console.log('❌ Disconnected from WebSocket server');
+            isConnected = false;
+            updateConnectionStatus(false);
+        });
+        
+        socket.on('connect_error', (error) => {
+            console.error('Connection error:', error);
+            updateConnectionStatus(false);
+        });
+        
+        // =====================================================
+        // WEBSOCKET EVENT LISTENERS
+        // =====================================================
+        // Listen for status updates which trigger notification refresh
+        socket.on('status_update', (data) => {
+            console.log('📊 Status Update (auto-refreshing notifications):', data);
+            loadNotifications();
+        });
+        
+        // =====================================================
+        // UI UPDATE FUNCTIONS
+        // =====================================================
+        function updateConnectionStatus(connected) {
+            let indicator = document.getElementById('connectionIndicator');
+            if (!indicator) {
+                // Create indicator if it doesn't exist
+                const btn = document.querySelector('.button-group');
+                if (btn) {
+                    indicator = document.createElement('div');
+                    indicator.id = 'connectionIndicator';
+                    indicator.style.cssText = 'text-align: center; margin-top: 20px; padding: 10px; border-top: 1px solid #00ff00;';
+                    btn.parentNode.insertBefore(indicator, btn.nextSibling);
+                }
+            }
+            
+            if (indicator) {
+                if (connected) {
+                    indicator.innerHTML = '<span style="color: #00ff00;">● Connected (Real-time)</span>';
+                } else {
+                    indicator.innerHTML = '<span style="color: #ff6600;">● Disconnected (Polling)</span>';
+                }
+            }
+        }
         
         async function loadNotifications() {
             try {
@@ -704,11 +930,16 @@ NOTIFICATIONS_TEMPLATE = """
             }
         }
         
-        // Initial load
+        // Initial load and connection status
+        updateConnectionStatus(isConnected);
         loadNotifications();
         
-        // Auto-refresh every 5 seconds
-        setInterval(loadNotifications, autoRefreshInterval);
+        // Fallback polling if WebSocket unavailable (every 10 seconds)
+        setInterval(() => {
+            if (!isConnected) {
+                loadNotifications();
+            }
+        }, 10000);
     </script>
 </body>
 </html>
