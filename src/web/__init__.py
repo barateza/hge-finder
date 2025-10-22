@@ -265,6 +265,164 @@ HTML_TEMPLATE = """
             font-size: 0.85em;
             color: #008800;
         }
+        
+        /* ===================================================
+           MOBILE RESPONSIVE ENHANCEMENTS
+           =================================================== */
+        
+        /* Touch-friendly button sizing */
+        @media (max-width: 768px) {
+            button {
+                padding: 15px 20px;
+                font-size: 1.1em;
+                min-height: 44px;  /* Touch target minimum */
+            }
+        }
+        
+        /* Small screens (portrait) */
+        @media (max-width: 600px) {
+            body {
+                padding: 10px;
+                font-size: 14px;
+            }
+            
+            h1 {
+                font-size: 1.8em;
+                margin-bottom: 20px;
+            }
+            
+            .container {
+                max-width: 100%;
+            }
+            
+            .status-grid {
+                grid-template-columns: 1fr;
+                gap: 15px;
+                margin-bottom: 20px;
+            }
+            
+            .card {
+                padding: 15px;
+                margin-bottom: 10px;
+            }
+            
+            .card h2 {
+                font-size: 1.1em;
+                margin-bottom: 10px;
+                padding-bottom: 8px;
+            }
+            
+            .card p {
+                font-size: 0.9em;
+                margin: 6px 0;
+            }
+            
+            .distance-large {
+                font-size: 1.5em;
+                margin: 15px 0;
+            }
+            
+            .coordinates {
+                font-size: 0.85em;
+            }
+            
+            button {
+                margin-top: 15px;
+            }
+        }
+        
+        /* Extra small screens */
+        @media (max-width: 360px) {
+            h1 {
+                font-size: 1.4em;
+                margin-bottom: 15px;
+            }
+            
+            body {
+                padding: 8px;
+            }
+            
+            .card {
+                padding: 12px;
+            }
+            
+            .distance-large {
+                font-size: 1.2em;
+            }
+        }
+        
+        /* Landscape orientation */
+        @media (max-width: 900px) and (orientation: landscape) {
+            h1 {
+                margin-bottom: 10px;
+                font-size: 1.8em;
+            }
+            
+            .status-grid {
+                grid-template-columns: repeat(2, 1fr);
+                gap: 15px;
+                margin-bottom: 15px;
+            }
+            
+            body {
+                padding: 10px;
+            }
+            
+            .card {
+                padding: 12px;
+            }
+            
+            .card h2 {
+                font-size: 1em;
+                margin-bottom: 8px;
+            }
+            
+            .card p {
+                font-size: 0.85em;
+                margin: 4px 0;
+            }
+        }
+        
+        /* Touch-friendly spacing */
+        @media (hover: none) and (pointer: coarse) {
+            button {
+                padding: 16px 20px;
+                margin-top: 20px;
+            }
+            
+            button:active {
+                background: #003300;
+                box-shadow: 0 0 15px rgba(0, 255, 0, 0.7);
+            }
+        }
+        
+        /* Dark mode optimization for mobile OLED screens */
+        @media (prefers-color-scheme: dark) {
+            body {
+                background: linear-gradient(135deg, #000000 0%, #0a0a0a 100%);
+            }
+        }
+        
+        /* High DPI displays (Retina) */
+        @media (-webkit-min-device-pixel-ratio: 2), (min-resolution: 192dpi) {
+            .status-indicator {
+                width: 12px;
+                height: 12px;
+            }
+            
+            .card {
+                border-width: 1px;
+            }
+        }
+        
+        /* Accessibility improvements */
+        @media (prefers-reduced-motion: reduce) {
+            * {
+                animation-duration: 0.01ms !important;
+                animation-iteration-count: 1 !important;
+                transition-duration: 0.01ms !important;
+            }
+        }
     </style>
 </head>
 <body>
@@ -588,6 +746,97 @@ HTML_TEMPLATE = """
         
         // Note: Real-time updates are driven by WebSocket events when connected
         // Fallback polling (every 30 seconds) is automatically enabled on disconnect
+        
+        // =====================================================
+        // MOBILE-SPECIFIC OPTIMIZATIONS
+        // =====================================================
+        
+        // Detect if device is touch-enabled
+        const isTouchDevice = () => {
+            return (('ontouchstart' in window) ||
+                    (navigator.maxTouchPoints > 0) ||
+                    (navigator.msMaxTouchPoints > 0));
+        };
+        
+        // Track touch gestures
+        let touchStartX = 0;
+        let touchEndX = 0;
+        let touchStartY = 0;
+        let touchEndY = 0;
+        
+        // Handle swipe to refresh
+        function handleSwipe() {
+            const swipeThreshold = 50;
+            const diffX = Math.abs(touchEndX - touchStartX);
+            const diffY = Math.abs(touchEndY - touchStartY);
+            
+            // Swipe down detected (Y threshold > X threshold)
+            if (diffY > diffX && touchEndY > touchStartY && diffY > swipeThreshold) {
+                console.log('↓ Swipe down detected - Refreshing...');
+                refreshStatus();
+            }
+        }
+        
+        // Touch event listeners for swipe-to-refresh
+        if (isTouchDevice()) {
+            document.addEventListener('touchstart', (e) => {
+                touchStartX = e.changedTouches[0].screenX;
+                touchStartY = e.changedTouches[0].screenY;
+            }, false);
+            
+            document.addEventListener('touchend', (e) => {
+                touchEndX = e.changedTouches[0].screenX;
+                touchEndY = e.changedTouches[0].screenY;
+                handleSwipe();
+            }, false);
+        }
+        
+        // Adaptive polling for mobile networks
+        function detectNetworkType() {
+            if (navigator.connection) {
+                const connection = navigator.connection;
+                const type = connection.effectiveType;
+                
+                if (type === '4g') {
+                    return { type: '4G', pollInterval: 30000 };
+                } else if (type === '3g') {
+                    return { type: '3G', pollInterval: 45000 };
+                } else if (type === '2g') {
+                    return { type: '2G', pollInterval: 60000 };
+                } else if (type === 'slow-2g') {
+                    return { type: 'Slow 2G', pollInterval: 90000 };
+                }
+            }
+            return { type: 'Unknown', pollInterval: 30000 };
+        }
+        
+        // Log mobile device info
+        if (isTouchDevice()) {
+            const network = detectNetworkType();
+            console.log(`📱 Mobile device detected (${network.type})`);
+            console.log('💡 Swipe down to refresh data');
+        }
+        
+        // Orientation change handler
+        window.addEventListener('orientationchange', () => {
+            const orientation = window.innerHeight > window.innerWidth ? 'portrait' : 'landscape';
+            console.log(`📐 Orientation changed to ${orientation}`);
+            // Re-render on orientation change for proper responsive layout
+            const statusGrid = document.getElementById('statusGrid');
+            if (statusGrid && statusGrid.children.length > 0) {
+                updateStatusViaREST();
+            }
+        });
+        
+        // Prevent accidental zooming on double-tap (mobile)
+        let lastTouchEnd = 0;
+        document.addEventListener('touchend', (e) => {
+            const now = Date.now();
+            if (now - lastTouchEnd <= 300) {
+                e.preventDefault();
+            }
+            lastTouchEnd = now;
+        }, false);
     </script>
 </body>
 </html>
@@ -753,6 +1002,188 @@ NOTIFICATIONS_TEMPLATE = """
             color: #008800;
             padding: 30px;
             font-size: 1.1em;
+        }
+        
+        /* ===================================================
+           MOBILE RESPONSIVE ENHANCEMENTS (Notifications)
+           =================================================== */
+        
+        /* Touch-friendly sizing */
+        @media (max-width: 768px) {
+            button {
+                padding: 15px 20px;
+                font-size: 1.1em;
+                min-height: 44px;
+                margin-right: 5px;
+                margin-bottom: 10px;
+            }
+        }
+        
+        /* Small screens */
+        @media (max-width: 600px) {
+            body {
+                padding: 10px;
+                font-size: 14px;
+            }
+            
+            h1 {
+                font-size: 1.8em;
+                margin-bottom: 20px;
+            }
+            
+            .container {
+                max-width: 100%;
+            }
+            
+            .stats-grid {
+                grid-template-columns: repeat(2, 1fr);
+                gap: 15px;
+                margin-bottom: 20px;
+            }
+            
+            .stat-card {
+                padding: 15px;
+            }
+            
+            .stat-card h3 {
+                font-size: 0.85em;
+                margin-bottom: 8px;
+                padding-bottom: 8px;
+            }
+            
+            .stat-value {
+                font-size: 2em;
+            }
+            
+            .history-section {
+                padding: 15px;
+                margin-bottom: 15px;
+            }
+            
+            .history-section h2 {
+                font-size: 1.3em;
+                margin-bottom: 15px;
+                padding-bottom: 10px;
+            }
+            
+            .notification-item {
+                padding: 12px;
+                margin-bottom: 12px;
+            }
+            
+            .notification-system {
+                font-size: 1.1em;
+                margin-bottom: 6px;
+            }
+            
+            .notification-item p {
+                font-size: 0.9em;
+                margin: 4px 0;
+            }
+            
+            .button-group {
+                display: flex;
+                flex-wrap: wrap;
+                gap: 10px;
+                justify-content: center;
+            }
+            
+            button {
+                flex: 1;
+                min-width: 120px;
+            }
+        }
+        
+        /* Extra small screens */
+        @media (max-width: 360px) {
+            h1 {
+                font-size: 1.4em;
+                margin-bottom: 15px;
+            }
+            
+            body {
+                padding: 8px;
+            }
+            
+            .stats-grid {
+                grid-template-columns: 1fr;
+                gap: 10px;
+            }
+            
+            .stat-card {
+                padding: 12px;
+            }
+            
+            .stat-value {
+                font-size: 1.6em;
+            }
+            
+            .button-group {
+                flex-direction: column;
+            }
+            
+            button {
+                width: 100%;
+            }
+        }
+        
+        /* Landscape orientation */
+        @media (max-width: 900px) and (orientation: landscape) {
+            h1 {
+                margin-bottom: 10px;
+                font-size: 1.6em;
+            }
+            
+            body {
+                padding: 10px;
+            }
+            
+            .stats-grid {
+                grid-template-columns: repeat(4, 1fr);
+                gap: 10px;
+                margin-bottom: 15px;
+            }
+            
+            .stat-card {
+                padding: 10px;
+            }
+            
+            .stat-card h3 {
+                font-size: 0.8em;
+                margin-bottom: 5px;
+            }
+            
+            .stat-value {
+                font-size: 1.5em;
+            }
+            
+            .history-section {
+                padding: 12px;
+                max-height: 60vh;
+                overflow-y: auto;
+            }
+        }
+        
+        /* Touch device optimizations */
+        @media (hover: none) and (pointer: coarse) {
+            button {
+                padding: 16px 20px;
+                margin-top: 15px;
+            }
+            
+            button:active {
+                background: #003300;
+                box-shadow: 0 0 15px rgba(0, 255, 0, 0.7);
+            }
+        }
+        
+        /* Accessibility */
+        @media (prefers-reduced-motion: reduce) {
+            * {
+                animation-duration: 0.01ms !important;
+                animation-iteration-count: 1 !important;
+                transition-duration: 0.01ms !important;
+            }
         }
     </style>
 </head>
@@ -975,6 +1406,74 @@ NOTIFICATIONS_TEMPLATE = """
         
         // Note: Real-time updates are driven by WebSocket events when connected
         // Fallback polling (every 10 seconds) is automatically enabled on disconnect
+        
+        // =====================================================
+        // MOBILE-SPECIFIC OPTIMIZATIONS (Notifications Page)
+        // =====================================================
+        
+        // Detect if device is touch-enabled
+        const isTouchDevice = () => {
+            return (('ontouchstart' in window) ||
+                    (navigator.maxTouchPoints > 0) ||
+                    (navigator.msMaxTouchPoints > 0));
+        };
+        
+        // Track touch gestures
+        let touchStartX = 0;
+        let touchEndX = 0;
+        let touchStartY = 0;
+        let touchEndY = 0;
+        
+        // Handle swipe to refresh notifications
+        function handleSwipe() {
+            const swipeThreshold = 50;
+            const diffX = Math.abs(touchEndX - touchStartX);
+            const diffY = Math.abs(touchEndY - touchStartY);
+            
+            // Swipe down detected
+            if (diffY > diffX && touchEndY > touchStartY && diffY > swipeThreshold) {
+                console.log('↓ Swipe down detected - Reloading notifications...');
+                loadNotifications();
+            }
+        }
+        
+        // Touch event listeners
+        if (isTouchDevice()) {
+            document.addEventListener('touchstart', (e) => {
+                touchStartX = e.changedTouches[0].screenX;
+                touchStartY = e.changedTouches[0].screenY;
+            }, false);
+            
+            document.addEventListener('touchend', (e) => {
+                touchEndX = e.changedTouches[0].screenX;
+                touchEndY = e.changedTouches[0].screenY;
+                handleSwipe();
+            }, false);
+        }
+        
+        // Orientation change handler
+        window.addEventListener('orientationchange', () => {
+            const orientation = window.innerHeight > window.innerWidth ? 'portrait' : 'landscape';
+            console.log(`📐 Notifications page orientation changed to ${orientation}`);
+            // Re-layout on orientation change
+            loadNotifications();
+        });
+        
+        // Prevent accidental zooming on double-tap (mobile)
+        let lastTouchEnd = 0;
+        document.addEventListener('touchend', (e) => {
+            const now = Date.now();
+            if (now - lastTouchEnd <= 300) {
+                e.preventDefault();
+            }
+            lastTouchEnd = now;
+        }, false);
+        
+        // Log mobile device info
+        if (isTouchDevice()) {
+            console.log('📱 Mobile device detected');
+            console.log('💡 Swipe down to refresh notifications');
+        }
     </script>
 </body>
 </html>
