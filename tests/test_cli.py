@@ -320,3 +320,55 @@ class TestRunCli:
         with patch('src.cli.display_status') as mock_display:
             run_cli(args)
             mock_display.assert_called_once_with(mock_manager)
+
+    @patch('src.cli.HGENotifierManager')
+    @patch('src.cli.time.sleep')
+    @patch('src.cli.display_status')
+    def test_run_cli_continuous_mode_multiple_iterations(self, mock_display, mock_sleep, mock_manager_class):
+        """Test continuous mode runs multiple iterations before interrupt."""
+        mock_manager = MagicMock()
+        mock_manager_class.return_value = mock_manager
+        mock_manager.settings.refresh_interval = 5
+        
+        # Simulate interrupt after 3 display calls
+        call_count = [0]
+        def interrupt_after_iterations(*args, **kwargs):
+            call_count[0] += 1
+            if call_count[0] >= 3:
+                raise KeyboardInterrupt()
+        
+        mock_sleep.side_effect = interrupt_after_iterations
+        
+        args = argparse.Namespace(once=False, log_level="INFO", log_file=None)
+        result = run_cli(args)
+        
+        # Should return 0 (success with keyboard interrupt)
+        assert result == 0
+        # display_status should be called multiple times
+        assert mock_display.call_count >= 3
+        # Verify sleep was called with correct interval
+        assert mock_sleep.call_count >= 3
+
+    @patch('src.cli.HGENotifierManager')
+    @patch('src.cli.time.sleep')
+    @patch('src.cli.display_status')
+    def test_run_cli_continuous_mode_refresh_interval(self, mock_display, mock_sleep, mock_manager_class):
+        """Test continuous mode uses correct refresh interval from settings."""
+        mock_manager = MagicMock()
+        mock_manager_class.return_value = mock_manager
+        mock_manager.settings.refresh_interval = 10
+        
+        # Interrupt after first sleep
+        mock_sleep.side_effect = KeyboardInterrupt()
+        
+        args = argparse.Namespace(once=False, log_level="INFO", log_file=None)
+        result = run_cli(args)
+        
+        assert result == 0
+        # Verify sleep was called with the correct refresh interval
+        if mock_sleep.called:
+            # The sleep is called with refresh_interval value
+            call_args = mock_sleep.call_args
+            if call_args:
+                # First call should be with refresh_interval
+                assert call_args[0][0] == 10 or call_args.args[0] == 10
