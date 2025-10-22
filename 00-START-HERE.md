@@ -9,7 +9,7 @@ This is your **single entry point** to the HGE Notifier project. Everything you 
 ## 📋 Quick Navigation (Start Here)
 
 ### For Project Overview
-�� **[README.md](README.md)** - Project status, quality metrics, module breakdown
+👉 **[README.md](README.md)** - Project status, quality metrics, module breakdown
 
 ### For Development Path
 👉 **[ROADMAP.md](ROADMAP.md)** - All phases complete, timeline, metrics, next steps
@@ -61,14 +61,14 @@ This is your **single entry point** to the HGE Notifier project. Everything you 
 ## 🚀 Quick Commands
 
 Run all tests:
-\\\bash
+```bash
 pytest tests/ -q  # Result: 287 passed
-\\\
+```
 
 Check coverage:
-\\\bash
+```bash
 pytest tests/ --cov=src --cov-report=term-missing  # Result: 86%
-\\\
+```
 
 ---
 
