@@ -9,6 +9,8 @@ from src.distance import DistanceCalculator
 from src.distance.coordinates import CoordinateDatabase
 from src.eddn import EDDNMonitor, HGESignal
 from src.journal import CommanderLocation, JournalParser
+from src.notifications.manager import NotificationManager
+from src.notifications.models import Alert
 
 
 class HGENotifierManager:
@@ -36,12 +38,39 @@ class HGENotifierManager:
         )
         
         self.distance_calculator = DistanceCalculator()
+        
+        # Initialize notification manager
+        alert_config = Alert(
+            max_distance_ly=self.settings.alert_max_distance,
+            max_age_hours=self.settings.alert_max_age,
+            enabled=self.settings.notifications_enabled,
+        )
+        self.notification_manager = NotificationManager(
+            discord_webhook=self.settings.discord_webhook_url,
+            alert_config=alert_config,
+            cooldown_seconds=self.settings.notification_cooldown_seconds,
+        )
 
         self._initialized = False
 
     def _on_new_hge_signal(self, signal: HGESignal) -> None:
         """Callback when new HGE signal is detected."""
         self.logger.info(f"New HGE signal in {signal.system_name}")
+        
+        # Try to send notification if commander location is available
+        try:
+            location = self.journal_parser.get_latest_location()
+            if location:
+                # Enrich coordinates if needed
+                signal = self._enrich_signal_coordinates(signal)
+                location = self._enrich_location_coordinates(location)
+                
+                # Check and send notification
+                notification = self.notification_manager.check_and_notify(signal, location)
+                if notification:
+                    self.logger.info(f"Notification sent: {notification.signal_system} ({notification.distance_ly} ly)")
+        except Exception as e:
+            self.logger.error(f"Error sending notification: {e}")
 
     def _on_location_change(self, location: CommanderLocation) -> None:
         """Callback when commander location changes."""
@@ -65,7 +94,7 @@ class HGENotifierManager:
 
     def get_status(self) -> dict:
         """
-        Get current status including HGE signal, location, and distance.
+        Get current status including HGE signal, location, distance, and notifications.
 
         Returns:
             Dictionary with current status.
@@ -82,6 +111,10 @@ class HGENotifierManager:
             "hge_signal": self._format_signal(signal),
             "commander_location": self._format_location(location),
             "distance": self._calculate_distance(signal, location),
+            "notifications": {
+                "history": self._format_notification_history(),
+                "stats": self._get_notification_stats(),
+            },
         }
 
         return status
@@ -194,3 +227,35 @@ class HGENotifierManager:
             "distance_ly": distance,
             "formatted": self.distance_calculator.format_distance(distance),
         }
+
+    def _format_notification_history(self) -> list:
+        """Get formatted notification history."""
+        try:
+            history = self.notification_manager.get_notification_history(count=10)
+            return [
+                {
+                    "system_name": notification.signal_system,
+                    "distance_ly": notification.distance_ly,
+                    "timestamp": notification.timestamp.isoformat(),
+                    "channel": notification.channel,
+                    "success": notification.success,
+                    "error": notification.error,
+                }
+                for notification in history
+            ]
+        except Exception as e:
+            self.logger.debug(f"Error getting notification history: {e}")
+            return []
+
+    def _get_notification_stats(self) -> dict:
+        """Get notification statistics."""
+        try:
+            stats = self.notification_manager.get_stats()
+            return {
+                "total": stats.get("total", 0),
+                "successful": stats.get("successful", 0),
+                "failed": stats.get("failed", 0),
+            }
+        except Exception as e:
+            self.logger.debug(f"Error getting notification stats: {e}")
+            return {"total": 0, "successful": 0, "failed": 0}
