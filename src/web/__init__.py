@@ -1,17 +1,56 @@
 """Flask web interface for HGE Notifier."""
 
 import logging
-from flask import Flask, jsonify, render_template_string, request
+from flask import Flask, jsonify, render_template_string, request, Response
+from socketio import AsyncServer
+from typing import Union, Tuple
 
 from src.core import HGENotifierManager
+from src.web.websocket import WebSocketManager
 
 
-def create_app(manager: HGENotifierManager) -> Flask:
-    """Create and configure the Flask application."""
+def create_app(manager: HGENotifierManager, ws_manager: WebSocketManager | None = None) -> Flask:
+    """Create and configure the Flask application.
+
+    Args:
+        manager: HGENotifierManager instance.
+        ws_manager: Optional WebSocketManager for real-time updates.
+
+    Returns:
+        Configured Flask application.
+    """
     app = Flask(__name__)
     app.config["JSON_SORT_KEYS"] = False
     
     logger = logging.getLogger(__name__)
+
+    # Initialize WebSocket if manager provided
+    if ws_manager:
+        sio = ws_manager.initialize()
+        
+        @sio.event
+        async def connect(sid, environ):
+            """Handle WebSocket client connection."""
+            logger.info(f"WebSocket client connected: {sid}")
+        
+        @sio.event
+        async def disconnect(sid):
+            """Handle WebSocket client disconnection."""
+            logger.info(f"WebSocket client disconnected: {sid}")
+        
+        @sio.event
+        async def subscribe(sid, data):
+            """Handle channel subscription."""
+            channels = data.get("channels", [])
+            logger.debug(f"Client {sid} subscribing to channels: {channels}")
+            await ws_manager._on_subscribe(sid, data)
+        
+        @sio.event
+        async def unsubscribe(sid, data):
+            """Handle channel unsubscription."""
+            channels = data.get("channels", [])
+            logger.debug(f"Client {sid} unsubscribing from channels: {channels}")
+            await ws_manager._on_unsubscribe(sid, data)
 
     @app.route("/")
     def index() -> str:
@@ -19,12 +58,12 @@ def create_app(manager: HGENotifierManager) -> Flask:
         return render_template_string(HTML_TEMPLATE)
 
     @app.route("/api/status")
-    def api_status() -> dict:
+    def api_status() -> Response:
         """Get current status as JSON."""
         return jsonify(manager.get_status())
 
     @app.route("/api/refresh", methods=["POST"])
-    def api_refresh() -> dict:
+    def api_refresh() -> Union[Response, Tuple[Response, int]]:
         """Trigger a manual refresh."""
         try:
             manager.refresh()
@@ -34,7 +73,7 @@ def create_app(manager: HGENotifierManager) -> Flask:
             return jsonify({"status": "error", "message": str(e)}), 500
 
     @app.route("/api/notifications")
-    def api_notifications() -> dict:
+    def api_notifications() -> Union[Response, Tuple[Response, int]]:
         """Get notification history."""
         try:
             count = request.args.get("count", 10, type=int)
@@ -58,7 +97,7 @@ def create_app(manager: HGENotifierManager) -> Flask:
             return jsonify({"status": "error", "message": str(e)}), 500
 
     @app.route("/api/notifications/stats")
-    def api_notifications_stats() -> dict:
+    def api_notifications_stats() -> Union[Response, Tuple[Response, int]]:
         """Get notification statistics."""
         try:
             stats = manager.notification_manager.get_stats()
@@ -75,7 +114,7 @@ def create_app(manager: HGENotifierManager) -> Flask:
             return jsonify({"status": "error", "message": str(e)}), 500
 
     @app.route("/api/notifications/clear", methods=["POST"])
-    def api_notifications_clear() -> dict:
+    def api_notifications_clear() -> Union[Response, Tuple[Response, int]]:
         """Clear notification history."""
         try:
             manager.notification_manager.in_app.clear_history()
@@ -681,12 +720,36 @@ def run_server(
     host: str = "127.0.0.1",
     port: int = 5000,
     debug: bool = False,
+    enable_websocket: bool = True,
 ) -> None:
-    """Run the Flask web server."""
-    app = create_app(manager)
+    """Run the Flask web server with optional WebSocket support.
+
+    Args:
+        manager: HGENotifierManager instance.
+        host: Host to bind to.
+        port: Port to bind to.
+        debug: Enable debug mode.
+        enable_websocket: Enable WebSocket real-time updates.
+    """
+    # Create WebSocket manager if enabled
+    ws_manager = None
+    if enable_websocket:
+        ws_manager = WebSocketManager(async_mode="threading")
+        manager.websocket_manager = ws_manager
+    
+    app = create_app(manager, ws_manager)
     manager.start()
     
     try:
-        app.run(host=host, port=port, debug=debug)
+        if ws_manager:
+            # Use python-socketio with Flask
+            from socketio import WSGIApp
+            app_with_socketio = WSGIApp(ws_manager.sio, app)
+            from werkzeug.serving import run_simple
+            run_simple(host, port, app_with_socketio, use_reloader=debug, use_debugger=debug)
+        else:
+            app.run(host=host, port=port, debug=debug)
     finally:
         manager.stop()
+        if ws_manager:
+            ws_manager.close()

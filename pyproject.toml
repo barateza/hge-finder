@@ -28,6 +28,8 @@ dependencies = [
     "python-dotenv>=1.0.0",
     "pyzmq>=25.0.0",
     "watchdog>=3.0.0",
+    "python-socketio>=5.9.0",
+    "python-engineio>=4.7.0",
 ]
 
 [project.optional-dependencies]

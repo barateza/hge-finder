@@ -1,8 +1,12 @@
 """Core manager orchestrating all components."""
 
+import asyncio
 import logging
 from pathlib import Path
-from typing import Optional
+from typing import TYPE_CHECKING, Callable, Optional
+
+if TYPE_CHECKING:
+    from src.web.websocket import WebSocketManager
 
 from src.config.settings import get_settings
 from src.distance import DistanceCalculator
@@ -16,10 +20,15 @@ from src.notifications.models import Alert
 class HGENotifierManager:
     """Core manager orchestrating EDDN monitoring and location tracking."""
 
-    def __init__(self) -> None:
-        """Initialize the HGE Notifier Manager."""
+    def __init__(self, websocket_manager: Optional['WebSocketManager'] = None) -> None:
+        """Initialize the HGE Notifier Manager.
+
+        Args:
+            websocket_manager: Optional WebSocket manager for real-time updates.
+        """
         self.settings = get_settings()
         self.logger = logging.getLogger(__name__)
+        self.websocket_manager = websocket_manager
         
         # Initialize coordinate database
         data_path = self.settings.project_root / "data"
@@ -42,7 +51,7 @@ class HGENotifierManager:
         # Initialize notification manager
         alert_config = Alert(
             max_distance_ly=self.settings.alert_max_distance,
-            max_age_hours=self.settings.alert_max_age,
+            max_age_hours=int(self.settings.alert_max_age),
             enabled=self.settings.notifications_enabled,
         )
         self.notification_manager = NotificationManager(
@@ -54,27 +63,61 @@ class HGENotifierManager:
         self._initialized = False
 
     def _on_new_hge_signal(self, signal: HGESignal) -> None:
-        """Callback when new HGE signal is detected."""
+        """Callback when new HGE signal is detected.
+
+        Args:
+            signal: The new HGE signal detected.
+        """
         self.logger.info(f"New HGE signal in {signal.system_name}")
+
+        # Emit WebSocket event if manager is available
+        if self.websocket_manager:
+            try:
+                signal_data = self._format_signal(signal)
+                if signal_data:
+                    asyncio.create_task(self.websocket_manager.emit_hge_signal(signal_data))
+            except Exception as e:
+                self.logger.debug(f"Error emitting WebSocket event: {e}")
         
         # Try to send notification if commander location is available
         try:
             location = self.journal_parser.get_latest_location()
             if location:
                 # Enrich coordinates if needed
-                signal = self._enrich_signal_coordinates(signal)
-                location = self._enrich_location_coordinates(location)
+                enriched_signal = self._enrich_signal_coordinates(signal)
+                enriched_location = self._enrich_location_coordinates(location)
                 
-                # Check and send notification
-                notification = self.notification_manager.check_and_notify(signal, location)
-                if notification:
-                    self.logger.info(f"Notification sent: {notification.signal_system} ({notification.distance_ly} ly)")
+                if enriched_signal and enriched_location:
+                    # Check and send notification
+                    notification = self.notification_manager.check_and_notify(enriched_signal, enriched_location)
+                    if notification:
+                        self.logger.info(f"Notification sent: {notification.signal_system} ({notification.distance_ly} ly)")
         except Exception as e:
             self.logger.error(f"Error sending notification: {e}")
 
     def _on_location_change(self, location: CommanderLocation) -> None:
-        """Callback when commander location changes."""
+        """Callback when commander location changes.
+
+        Args:
+            location: The commander's new location.
+        """
         self.logger.info(f"Location changed to {location.system_name}")
+
+        # Emit WebSocket event if manager is available
+        if self.websocket_manager:
+            try:
+                location_data = self._format_location(location)
+                if location_data:
+                    asyncio.create_task(self.websocket_manager.emit_location_update(location_data))
+                
+                # Also emit distance update if we have a signal
+                signal = self.eddn_monitor.get_latest_signal()
+                if signal:
+                    distance_data = self._calculate_distance(signal, location)
+                    if distance_data:
+                        asyncio.create_task(self.websocket_manager.emit_distance_update(distance_data))
+            except Exception as e:
+                self.logger.debug(f"Error emitting WebSocket event: {e}")
 
     def start(self) -> None:
         """Start monitoring EDDN and journal."""
