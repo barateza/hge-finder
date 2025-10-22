@@ -66,6 +66,8 @@ The targeted software will fetch and parse HGE-related system data in real-time 
 - **Testing:** pytest, flake8
 - **Deployment:** No special requirements (standard Python environment)
 
+IMPORTANT: Development will be made on a local machine with Windows OS with PowerShell as the primary terminal.
+
 ## 5. Security and Privacy
 - No user credentials or sensitive data transmission required
 - All data processing is local; journal files and location stay on user’s machine
