@@ -46,108 +46,82 @@
 
 ---
 
-## Phase 2: Notifications & Alerts (Next Priority)
+## Phase 2: Notifications & Alerts ⏳ IN PROGRESS
 
-### 1.1 EDDN Real Connection
-**Status**: Not Started  
+### Status: Starting Phase 2 Implementation
+
+**What Will Be Delivered:**
+- [ ] Discord webhook integration for real-time HGE alerts
+- [ ] In-app notification system with status tracking
+- [ ] Configurable alert thresholds (distance, age)
+- [ ] Notification history and logging
+- [ ] User preference management
+- [ ] Comprehensive error handling for notification delivery
+- [ ] Tests for notification pipelines
+- [ ] Professional documentation
+
+**Key Components:**
+
+### 2.1 Discord Integration ⏳ NEXT
+**Status**: Starting  
 **Effort**: Medium  
-**Dependencies**: PyZMQ installation
+**Dependencies**: discord-py-webhook or requests
 
 ```python
-# TODO: Implement in src/eddn/__init__.py
-# Connect to EDDN ZMQ endpoint: tcp://eddn.edcd.io:9500
-# Subscribe to HighGradeEmission message type
-# Parse incoming JSON messages
-# Extract: timestamp, star_system, star_pos (x, y, z)
-```
-
-**Tasks**:
-- [ ] Add ZMQ connection logic
-- [ ] Implement message filtering
-- [ ] Add reconnection/error handling
-- [ ] Test with real EDDN stream
-- [ ] Add configuration for EDDN endpoints
-
-### 1.2 Real Journal Parsing
-**Status**: Not Started  
-**Effort**: Medium  
-**Dependencies**: Python file watching
-
-```python
-# TODO: Implement in src/journal/__init__.py
-# Use pathlib to find latest journal file
-# Implement file tail watching
-# Parse JSON log entries
-# Track Location and FSDJump events
-```
-
-**Tasks**:
-- [ ] Implement journal file discovery
-- [ ] Add file watching with watchdog
-- [ ] Extract coordinate data from events
-- [ ] Handle journal file rotation
-- [ ] Cache last known location
-
-### 1.3 System Coordinate Database
-**Status**: Not Started  
-**Effort**: High  
-**Dependencies**: Requests, EDSM API
-
-```python
-# TODO: Create src/coordinates/ module
-# Integrate EDSM API for system coordinates
-# Cache results locally
-# Handle API rate limiting
-```
-
-**Tasks**:
-- [ ] Design coordinate cache schema
-- [ ] Implement EDSM API client
-- [ ] Add local SQLite cache
-- [ ] Handle missing coordinates gracefully
-- [ ] Add coordinate update scheduling
-
----
-
-## Phase 2: Notifications & Alerts
-
-### 2.1 Discord Integration
-**Status**: Not Started  
-**Effort**: Low
-
-```python
-# TODO: Create src/notifications/discord.py
+# Create src/notifications/discord.py
 # Send HGE alerts to Discord webhook
-# Format messages with embeds
-# Add filtering options
+# Format rich embeds with system info
+# Include distance, coordinates, age
+# Track notification delivery status
 ```
 
 **Tasks**:
-- [ ] Design notification message format
+- [ ] Create notification module structure
 - [ ] Implement Discord webhook client
-- [ ] Add configuration for webhook URLs
-- [ ] Test notification delivery
-- [ ] Add notification throttling
+- [ ] Design embed message format
+- [ ] Add retry logic for failed sends
+- [ ] Implement rate limiting
+- [ ] Add configuration for webhook URL
+- [ ] Write unit tests (min 5 tests)
 
-### 2.2 Email Notifications
-**Status**: Not Started  
-**Effort**: Low
+### 2.2 In-App Notification System
+**Status**: Planned  
+**Effort**: Medium  
+**Dependencies**: Internal state management
+
+```python
+# Create src/notifications/in_app.py
+# Track recent HGE alerts in memory
+# Store notification history
+# Provide notification API
+# Format for web dashboard
+```
 
 **Tasks**:
-- [ ] Implement SMTP client
-- [ ] Design email template
-- [ ] Add email configuration
-- [ ] Test email delivery
+- [ ] Design in-app notification schema
+- [ ] Implement notification queue
+- [ ] Add history tracking
+- [ ] Create notification filters
+- [ ] Write unit tests (min 5 tests)
 
-### 2.3 In-App Alerts
-**Status**: Not Started  
-**Effort**: Low
+### 2.3 Notification Orchestration
+**Status**: Planned  
+**Effort**: Low  
+**Dependencies**: Core manager integration
+
+```python
+# Enhance src/core.py
+# Trigger notifications on new HGE
+# Manage notification preferences
+# Handle notification pipelines
+```
 
 **Tasks**:
-- [ ] Add sound alerts to CLI
-- [ ] Add visual indicators to web UI
-- [ ] Implement alert debouncing
-- [ ] Add severity levels
+- [ ] Add notification manager to core
+- [ ] Implement callback system
+- [ ] Add error handling for notifications
+- [ ] Create preference storage
+- [ ] Write integration tests (min 5 tests)
 
 ---
 
