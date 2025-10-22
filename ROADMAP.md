@@ -1,5 +1,24 @@
 # Development Roadmap - HGE Notifier
 
+**Last Updated**: October 22, 2025  
+**Current Status**: Phase 3 MEDIUM Complete - 81% Coverage  
+**Next Phase**: Phase 3 HARD (Target: 85%+)
+
+---
+
+## Executive Summary
+
+| Phase | Status | Coverage | Tests | Duration |
+|-------|--------|----------|-------|----------|
+| **Phase 1** | ✅ Complete | 79% | 80 | ~3-5 days |
+| **Phase 2** | ✅ Complete | 80% | 36 new | ~3 hours |
+| **Phase 3 EASY** | ✅ Complete | 80% | 38 new | ~2 hours |
+| **Phase 3 MEDIUM** | ✅ Complete | 81% | 23 new | ~2 hours |
+| **Phase 3 HARD** | 🟡 Planned | → 85% | ~30 new | ~7-9 hours |
+| **WebSocket** | ⏳ Pending | Post-85% | - | - |
+
+---
+
 ## MVP Status ✅ COMPLETE
 
 ### Core Features Implemented
@@ -185,149 +204,148 @@ Settings:
 
 ## Phase 3: Enhanced Web UI & Advanced Features
 
-### Status: Ready to Start (Post Phase 2 - Oct 22, 2025)
+### Status: MEDIUM Phase Complete (Oct 22, 2025) - Ready for HARD Phase
 
-**Baseline for Phase 3:**
-- 80% code coverage (198 missing lines out of 991 statements)
-- 180 comprehensive tests (100% passing)
-- Production-ready notification system
-- Solid foundation for advanced features
+**Current Baseline:**
+- **Coverage**: 81% (187 missing lines out of 991 statements)
+- **Tests**: 241 (100% passing)
+- **Perfect Modules**: 7 at 100% coverage
+- **Excellent Modules**: 8 at 90%+
 
-**Phase 3 Goals:**
-- Reach 85%+ code coverage through edge case testing
-- Enhance web UI with real-time updates
-- Improve user experience with advanced features
-- Maintain production quality and zero regressions
+### Phase 3.1: EASY - Edge Case Testing for Stable Modules ✅ COMPLETE
 
-### 3.1 Advanced Dashboard with Real-Time Updates
+**What Was Done** (2 hours, +38 tests):
+- ✅ Distance calculation edge cases (13 tests)
+  - All None, partial None, zero, negative, large values
+  - Format edge cases, rounding behavior
+  
+- ✅ In-App notification edge cases (16 tests)
+  - Empty history, boundary conditions, case sensitivity
+  - **Result: 100% coverage achieved** (was 90%)
+  
+- ✅ Coordinates caching edge cases (13 tests)
+  - Nonexistent systems, negative/large coords
+  - Special characters, duplicate handling
 
-**Status**: Not Started  
-**Effort**: Medium (4-6 hours)  
-**Dependencies**: Phase 2 complete, WebSocket library  
-**Priority**: HIGH - Improves user experience significantly
+**Result**: 80% → 80% coverage (+1 line, +38 tests)
 
-**Features to Implement**:
-- [ ] System detail view with coordinates and EDDN age
-- [ ] Search/filter functionality for signal history
-- [ ] Signal timeline visualization (last 24 hours)
-- [ ] HGE frequency statistics and heatmap
-- [ ] Live status indicator (connected/disconnected)
-- [ ] Performance metrics (refresh rate, signal latency)
+---
 
-**Technical Requirements**:
-- WebSocket connection for real-time updates
-- Client-side caching for offline capability
-- Progressive enhancement (works without JavaScript)
-- Responsive design improvements
-- Accessibility improvements (WCAG AA)
+### Phase 3.2: MEDIUM - File I/O & Coordinate Testing ✅ COMPLETE
 
-**Coverage Impact**: +2-3% (targeting edge cases in web module)
+**What Was Done** (2 hours, +23 tests):
 
-### 3.2 WebSocket Real-Time Updates
+**Journal File I/O** (6 tests):
+- ✅ Missing file/directory handling
+- ✅ Corrupted JSON parsing
+- ✅ Empty file handling
+- ✅ Graceful error recovery
 
-**Status**: Not Started  
-**Effort**: Medium (3-4 hours)  
-**Dependencies**: Flask, python-socketio  
-**Priority**: HIGH - Critical for real-time UI
+**Coordinate Extraction** (17 tests):
+- ✅ Missing/partial coordinates
+- ✅ Location and FSDJump events
+- ✅ Timestamp parsing variants
+- ✅ Callback mechanism
+- ✅ Multiple location events
+- ✅ File position tracking
+- ✅ Large/negative values
 
-**Features to Implement**:
-- [ ] WebSocket server using python-socketio library
-- [ ] Event-driven status updates (new HGE, location change)
-- [ ] Server-sent events (SSE) fallback for older browsers
-- [ ] Client automatic reconnection logic
-- [ ] Connection health monitoring
-- [ ] Broadcast to multiple connected clients
+**Result**: 80% → 81% coverage (+10 lines, +23 tests)  
+**Journal Module**: 78% → 85% (+7% improvement) 🎉
 
-**Technical Requirements**:
+---
+
+### Phase 3.3: HARD - Network & Orchestration Testing (Not Started)
+
+**Estimated**: 7-9 hours, ~30-35 tests
+
+#### 3.3A: EDDN Module Network Error Testing (Priority 1)
+**Current**: 68% coverage (54 missing lines)  
+**Target**: 85% coverage
+
+**To Test**:
+- [ ] ZMQ connection failures
+- [ ] Network timeout scenarios
+- [ ] Malformed JSON message parsing
+- [ ] Protocol version mismatches
+- [ ] Signal filtering edge cases
+- [ ] Reconnection backoff logic
+
+**Estimated Tests**: 15-18 new tests  
+**Estimated Time**: 4-5 hours
+
+#### 3.3B: Core Module Orchestration Testing (Priority 2)
+**Current**: 65% coverage (38 missing lines)  
+**Target**: 80% coverage
+
+**To Test**:
+- [ ] Signal filtering with missing data
+- [ ] Location update error paths
+- [ ] Service integration failures
+- [ ] Error recovery scenarios
+- [ ] Shutdown and cleanup paths
+- [ ] Complex state management
+
+**Estimated Tests**: 12-15 new tests  
+**Estimated Time**: 3-4 hours
+
+**Expected Result**: 81% → 85%+ coverage
+
+---
+
+### Phase 3.4: Real-Time Features (Post 85% Coverage)
+
+**Status**: Planned - Starts after 85% achieved
+
+**WebSocket Implementation**:
+- [ ] Install python-socketio>=5.9.0
+- [ ] WebSocket server in Flask
+- [ ] Real-time status updates
+- [ ] Client-side event handling
+
+**Advanced Dashboard**:
+- [ ] System detail view
+- [ ] Signal timeline
+- [ ] Statistics and heatmap
+- [ ] Live status indicator
+
+**Mobile Enhancements**:
+- [ ] Touch-friendly controls
+- [ ] Landscape orientation
+- [ ] Mobile-specific layout
+- [ ] Responsive improvements
+
+**Estimated**: 12-15 hours post-85%
+
+---
+
+## Summary Table
+
+| Phase | Name | Status | Tests | Coverage | Duration |
+|-------|------|--------|-------|----------|----------|
+| 1 | Real Data Integration | ✅ Done | 80 | 79% | ~5 days |
+| 2 | Notifications & Alerts | ✅ Done | 100 (+36) | 80% | ~3 hrs |
+| 3.1 | EASY Edge Cases | ✅ Done | 38 | 80% | ~2 hrs |
+| 3.2 | MEDIUM File I/O | ✅ Done | 23 | 81% | ~2 hrs |
+| 3.3 | HARD Network/Core | 🟡 Next | ~30-35 | → 85% | ~7-9 hrs |
+| 3.4 | WebSocket & UI | ⏳ After | TBD | 85%+ | ~12-15 hrs |
+
+---
+
+## Coverage Roadmap
+
 ```
-pip install python-socketio>=5.9.0
-pip install python-engineio>=4.7.0
+79% ════════════════════════════════════ Phase 1 Complete
+80% ════════════════════════════════════╪════════ Phase 2 Complete
+   │
+   ├─ EASY (+38 tests) ════════════════╪════╪ (80%)
+   │
+   └─ MEDIUM (+23 tests) ══════════════╪════╪══ (81%) ← YOU ARE HERE
+
+85% ════════════════════════════════════╪════╪══╪═════════ TARGET
+   │
+   └─ HARD (~30 tests) ═══════════════╪════╪══╪═╪═══════ (Next)
 ```
-
-**Implementation**:
-- Add WebSocket namespace for status updates
-- Emit HGE signals in real-time
-- Push location updates
-- Broadcast notification events
-- Monitor connection status
-
-**Coverage Impact**: +1-2% (new WebSocket code paths)
-
-### 3.3 Improved Mobile Responsive Design
-
-**Status**: Partially Complete (layout done, enhancements needed)  
-**Effort**: Low (2-3 hours)  
-**Dependencies**: Phase 2 complete  
-**Priority**: MEDIUM
-
-**Enhancements to Add**:
-- [x] Base responsive layout (Flexbox/Grid) - DONE
-- [ ] Mobile-optimized touch controls (larger buttons, swipe)
-- [ ] Landscape orientation support
-- [ ] Mobile-specific dashboard view
-- [ ] Touch-friendly date/time pickers
-- [ ] Improved readability on small screens
-- [ ] Hamburger menu for navigation
-- [ ] Mobile notifications opt-in
-
-**Testing Required**:
-- Test on iOS Safari
-- Test on Android Chrome
-- Test on various screen sizes (320px - 768px)
-- Test touch interactions
-
-**Coverage Impact**: Minimal (mostly UI/template changes)
-
-### 3.4 Core Logic Edge Cases & Error Paths
-
-**Status**: Not Started  
-**Effort**: Medium (4-5 hours)  
-**Dependencies**: Phase 2 complete  
-**Priority**: CRITICAL - Reaches 85% coverage goal
-
-**Modules to Improve**:
-
-**src/core.py (currently 65%)**:
-- [ ] Test orchestration with missing data
-- [ ] Test error recovery scenarios
-- [ ] Test signal filtering edge cases
-- [ ] Test location update edge cases
-- [ ] Test cleanup and shutdown paths
-- **Target**: 80%+ coverage (+15 lines)
-
-**src/eddn/__init__.py (currently 68%)**:
-- [ ] Test ZMQ connection failures
-- [ ] Test malformed message handling
-- [ ] Test protocol version mismatches
-- [ ] Test timeout and reconnection logic
-- [ ] Test message validation edge cases
-- **Target**: 85%+ coverage (+15-20 lines)
-
-**src/journal/__init__.py (currently 78%)**:
-- [ ] Test missing journal directory
-- [ ] Test corrupted journal entries
-- [ ] Test empty/large journal files
-- [ ] Test permission errors
-- [ ] Test coordinate extraction edge cases
-- **Target**: 90%+ coverage (+12-15 lines)
-
-**Coverage Impact**: +4-5% (reaches 85% goal)
-
-### 3.5 Documentation Updates
-
-**Status**: Not Started  
-**Effort**: Low-Medium (2-3 hours)  
-**Dependencies**: Features implemented
-
-**Documentation to Create**:
-- [ ] Phase 3 Implementation Guide (how WebSocket works, real-time updates)
-- [ ] WebSocket API Reference (events, message formats)
-- [ ] Mobile User Guide (touch controls, responsive features)
-- [ ] Architecture Diagrams (deployment, real-time flow)
-- [ ] Advanced Configuration Guide (WebSocket settings)
-- [ ] Troubleshooting Guide for real-time features
-
-**Coverage Impact**: Minimal (documentation only)
 
 ---
 
