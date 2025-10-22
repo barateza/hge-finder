@@ -294,7 +294,8 @@ HTML_TEMPLATE = """
         
         // Track connection status
         let isConnected = false;
-        let autoRefreshTimer = null;
+        let pollingTimer = null;
+        const POLLING_INTERVAL_MS = 30000; // 30 seconds fallback polling
         
         // =====================================================
         // WEBSOCKET CONNECTION HANDLERS
@@ -303,6 +304,13 @@ HTML_TEMPLATE = """
             console.log('✅ Connected to WebSocket server:', socket.id);
             isConnected = true;
             updateConnectionStatus(true);
+            
+            // Stop polling when connected (WebSocket will handle updates)
+            if (pollingTimer !== null) {
+                clearInterval(pollingTimer);
+                pollingTimer = null;
+                console.log('🔌 Polling stopped - using real-time updates');
+            }
             
             // Subscribe to real-time updates
             socket.emit('subscribe', {
@@ -314,6 +322,14 @@ HTML_TEMPLATE = """
             console.log('❌ Disconnected from WebSocket server');
             isConnected = false;
             updateConnectionStatus(false);
+            
+            // Start polling as fallback when disconnected
+            if (pollingTimer === null) {
+                console.log('⏱️ Starting fallback polling...');
+                pollingTimer = setInterval(updateStatusViaREST, POLLING_INTERVAL_MS);
+                // Immediate refresh to avoid waiting for first interval
+                updateStatusViaREST();
+            }
         });
         
         socket.on('connect_error', (error) => {
@@ -440,17 +456,18 @@ HTML_TEMPLATE = """
             updateConnectionStatus(isConnected);
         }
         
-        async function updateStatus() {
-            if (!isConnected) {
-                // Fall back to REST API when WebSocket not available
-                try {
-                    const response = await fetch(statusEndpoint);
-                    const data = await response.json();
-                    renderStatus(data);
-                } catch (error) {
-                    console.error("Error fetching status:", error);
-                    renderError(error);
+        // REST API fallback (only called when WebSocket disconnected)
+        async function updateStatusViaREST() {
+            try {
+                const response = await fetch(statusEndpoint);
+                if (!response.ok) {
+                    console.error(`HTTP error! status: ${response.status}`);
+                    return;
                 }
+                const data = await response.json();
+                renderStatus(data);
+            } catch (error) {
+                console.error("Error fetching status via REST:", error);
             }
         }
         
@@ -542,30 +559,35 @@ HTML_TEMPLATE = """
             `;
         }
         
-        async function refreshStatus() {
+        function refreshStatus() {
             const btn = event.target;
             btn.disabled = true;
             btn.textContent = "⏳ Refreshing...";
             
             try {
-                const response = await fetch(refreshEndpoint, { method: "POST" });
-                const data = await response.json();
-                renderStatus(data.data);
+                fetch(refreshEndpoint, { method: "POST" })
+                    .then(response => response.json())
+                    .then(data => renderStatus(data.data))
+                    .catch(error => {
+                        console.error("Error refreshing status:", error);
+                        renderError(error);
+                    })
+                    .finally(() => {
+                        btn.disabled = false;
+                        btn.textContent = "🔄 REFRESH NOW";
+                    });
             } catch (error) {
-                console.error("Error refreshing status:", error);
-                renderError(error);
-            } finally {
+                console.error("Unexpected error during refresh:", error);
                 btn.disabled = false;
                 btn.textContent = "🔄 REFRESH NOW";
             }
         }
         
-        // Initial load
-        updateStatus();
+        // Initial load via REST API
+        updateStatusViaREST();
         
-        // Note: Auto-refresh is now driven by WebSocket events
-        // Falls back to polling every 30 seconds if WebSocket unavailable
-        setInterval(updateStatus, 30000);
+        // Note: Real-time updates are driven by WebSocket events when connected
+        // Fallback polling (every 30 seconds) is automatically enabled on disconnect
     </script>
 </body>
 </html>
@@ -777,6 +799,8 @@ NOTIFICATIONS_TEMPLATE = """
         
         // Track connection status
         let isConnected = false;
+        let notificationsPollingTimer = null;
+        const NOTIFICATIONS_POLLING_INTERVAL_MS = 10000; // 10 seconds fallback polling
         
         // =====================================================
         // WEBSOCKET CONNECTION HANDLERS
@@ -785,6 +809,13 @@ NOTIFICATIONS_TEMPLATE = """
             console.log('✅ Connected to WebSocket server:', socket.id);
             isConnected = true;
             updateConnectionStatus(true);
+            
+            // Stop polling when connected (WebSocket will handle updates)
+            if (notificationsPollingTimer !== null) {
+                clearInterval(notificationsPollingTimer);
+                notificationsPollingTimer = null;
+                console.log('🔌 Notifications polling stopped - using real-time updates');
+            }
             
             // Subscribe to real-time updates
             socket.emit('subscribe', {
@@ -799,6 +830,14 @@ NOTIFICATIONS_TEMPLATE = """
             console.log('❌ Disconnected from WebSocket server');
             isConnected = false;
             updateConnectionStatus(false);
+            
+            // Start polling as fallback when disconnected
+            if (notificationsPollingTimer === null) {
+                console.log('⏱️ Starting fallback notifications polling...');
+                notificationsPollingTimer = setInterval(loadNotifications, NOTIFICATIONS_POLLING_INTERVAL_MS);
+                // Immediate refresh to avoid waiting for first interval
+                loadNotifications();
+            }
         });
         
         socket.on('connect_error', (error) => {
@@ -934,12 +973,8 @@ NOTIFICATIONS_TEMPLATE = """
         updateConnectionStatus(isConnected);
         loadNotifications();
         
-        // Fallback polling if WebSocket unavailable (every 10 seconds)
-        setInterval(() => {
-            if (!isConnected) {
-                loadNotifications();
-            }
-        }, 10000);
+        // Note: Real-time updates are driven by WebSocket events when connected
+        // Fallback polling (every 10 seconds) is automatically enabled on disconnect
     </script>
 </body>
 </html>
