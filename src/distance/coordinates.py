@@ -4,6 +4,7 @@ import json
 import logging
 import sqlite3
 import threading
+import time
 from pathlib import Path
 from typing import Optional, Tuple
 from datetime import datetime, timedelta
@@ -91,14 +92,43 @@ class CoordinateDatabase:
                 if coords:
                     return coords
 
-            # Try EDSM API
-            coords = self._fetch_from_edsm(system_name)
+            # Try EDSM API with retry
+            coords = self._fetch_from_edsm_with_retry(system_name, retries=2)
             
             if coords:
                 self._store_in_cache(system_name, coords)
                 return coords
 
             return None
+
+    def _fetch_from_edsm_with_retry(
+        self,
+        system_name: str,
+        retries: int = 2,
+    ) -> Optional[Tuple[float, float, float]]:
+        """
+        Fetch coordinates from EDSM API with retry logic.
+
+        Args:
+            system_name: Name of the system
+            retries: Number of retry attempts
+
+        Returns:
+            Tuple of (x, y, z) or None
+        """
+        for attempt in range(retries):
+            try:
+                coords = self._fetch_from_edsm(system_name)
+                if coords:
+                    return coords
+            except Exception as e:
+                if attempt < retries - 1:
+                    logger.debug(f"EDSM fetch failed for '{system_name}', retrying... (attempt {attempt + 1}/{retries})")
+                    time.sleep(0.5)  # Short delay before retry
+                else:
+                    logger.warning(f"Failed to fetch coordinates for '{system_name}' after {retries} attempts")
+        
+        return None
 
     def _get_from_cache(self, system_name: str) -> Optional[Tuple[float, float, float]]:
         """
@@ -159,7 +189,7 @@ class CoordinateDatabase:
             Tuple of (x, y, z) or None
         """
         try:
-            logger.debug(f"Fetching coordinates for {system_name} from EDSM")
+            logger.debug(f"Fetching coordinates for '{system_name}' from EDSM")
             
             params = {
                 "systemName": system_name,
@@ -174,8 +204,10 @@ class CoordinateDatabase:
             response.raise_for_status()
             
             data = response.json()
+            logger.debug(f"EDSM response for '{system_name}': {data}")
             
-            if data.get("id"):  # System found
+            # EDSM returns either 'id' or 'name' field to indicate the system was found
+            if data.get("id") or data.get("name"):
                 coords = data.get("coords")
                 if coords:
                     x = coords.get("x")
@@ -183,17 +215,22 @@ class CoordinateDatabase:
                     z = coords.get("z")
                     
                     if x is not None and y is not None and z is not None:
-                        logger.debug(f"Found coordinates for {system_name}: ({x}, {y}, {z})")
+                        logger.info(f"Found coordinates for {system_name}: ({x}, {y}, {z})")
                         return (x, y, z)
+                    else:
+                        logger.debug(f"System '{system_name}' found in EDSM but missing coordinate values")
+                else:
+                    logger.debug(f"System '{system_name}' found in EDSM but no coordinates available")
+            else:
+                logger.debug(f"System '{system_name}' not found in EDSM")
 
-            logger.debug(f"No coordinates found for {system_name} in EDSM")
             return None
 
         except requests.RequestException as e:
-            logger.warning(f"EDSM API error for {system_name}: {e}")
+            logger.warning(f"EDSM API error for '{system_name}': {e}")
             return None
         except (json.JSONDecodeError, KeyError) as e:
-            logger.error(f"Error parsing EDSM response for {system_name}: {e}")
+            logger.error(f"Error parsing EDSM response for '{system_name}': {e}")
             return None
 
     def _store_in_cache(
