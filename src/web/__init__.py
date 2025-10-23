@@ -2167,7 +2167,14 @@ def run_server(
         if ws_manager:
             # Use python-socketio with Flask via ASGIApp for async support
             from socketio import ASGIApp
-            app_with_socketio = ASGIApp(ws_manager.sio, app)
+            from asgiref.wsgi import WsgiToAsgi
+            
+            # Wrap Flask (WSGI) to ASGI
+            flask_asgi = WsgiToAsgi(app)
+            
+            # Wrap with Socket.IO
+            app_with_socketio = ASGIApp(ws_manager.sio, flask_asgi)
+            
             import uvicorn
             uvicorn.run(app_with_socketio, host=host, port=port, log_level="info")
         else:
