@@ -3,6 +3,10 @@
 import argparse
 import logging
 import sys
+import warnings
+
+# Suppress the harmless runpy warning about __main__ module
+warnings.filterwarnings("ignore", category=RuntimeWarning, message=".*__main__.*")
 
 from src.cli import setup_logging, run_cli
 from src.config.settings import get_settings
@@ -17,10 +21,12 @@ def main() -> int:
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:
-  %(prog)s                    Run CLI with continuous monitoring
-  %(prog)s --once             Run CLI once and exit
-  %(prog)s --web              Run web server
-  %(prog)s --web --port 8080  Run web server on custom port
+  %(prog)s                        Run CLI with continuous monitoring (mock mode)
+  %(prog)s --real-eddn            Run CLI with real EDDN data
+  %(prog)s --once                 Run CLI once and exit
+  %(prog)s --web                  Run web server (mock mode)
+  %(prog)s --web --real-eddn      Run web server with real EDDN data
+  %(prog)s --web --port 8080      Run web server on custom port
         """,
     )
     
@@ -28,6 +34,11 @@ Examples:
         "--web",
         action="store_true",
         help="Run web server instead of CLI"
+    )
+    parser.add_argument(
+        "--real-eddn",
+        action="store_true",
+        help="Connect to real EDDN (default: use mock data for testing)"
     )
     parser.add_argument(
         "--once",
@@ -68,6 +79,14 @@ Examples:
         if args.web:
             # Web server mode
             settings = get_settings()
+            
+            # Override mock mode if requested
+            if args.real_eddn:
+                settings.eddn_mock_mode = False
+                logger.info("Using real EDDN data")
+            else:
+                logger.info("Using mock EDDN data (use --real-eddn for real data)")
+            
             manager = HGENotifierManager()
             
             logger.info(f"Starting web server on {args.host}:{args.port}")
@@ -79,6 +98,15 @@ Examples:
             )
         else:
             # CLI mode
+            settings = get_settings()
+            
+            # Override mock mode if requested
+            if args.real_eddn:
+                settings.eddn_mock_mode = False
+                logger.info("Using real EDDN data")
+            else:
+                logger.info("Using mock EDDN data (use --real-eddn for real data)")
+            
             parser_args = argparse.Namespace(
                 once=args.once,
                 log_level=args.log_level,
