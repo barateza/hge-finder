@@ -39,11 +39,48 @@ hge-notifier --web
 Create a `.env` in the project root (or set environment variables). Example:
 
 ```env
+# IMPORTANT: Turn off mock mode to connect to real EDDN
 EDDN_MOCK_MODE=false
-JOURNAL_PATH=C:\Users\<You>\Saved Games\Frontier Developments\Elite Dangerous
+
+# Set your Elite Dangerous journal directory
+# See "Finding Your Journal Folder" below for how to locate this
+JOURNAL_PATH=C:\Users\sique\Saved Games\Frontier Developments\Elite Dangerous
+
+# Other optional settings
 REFRESH_INTERVAL=10
 LOG_LEVEL=INFO
+NOTIFICATIONS_ENABLED=false
 ```
+
+### Finding Your Journal Folder
+
+Your Elite Dangerous journal files are generated in real-time as you play. Each line in these files is a JSON object representing a gameplay event.
+
+**Windows (most common):**
+```
+C:\Users\<YourUsername>\Saved Games\Frontier Developments\Elite Dangerous
+```
+
+**How to find your username's actual path:**
+1. Open EDDiscovery or another third-party tool
+2. Check its settings for the journal folder location
+3. Or manually navigate: Press `Win+R`, type `%APPDATA%` and work back to find the path
+
+**Files to look for:**
+- `Journal.*.log` — These are the journal files the app reads
+- They contain events like: `Location`, `FSDJump`, `SupercruiseExit` (location updates)
+
+### ⚠️ Important: Mock Mode is ON by Default
+
+By default, the app runs with `EDDN_MOCK_MODE=true`, which means:
+- ❌ It will NOT connect to the real EDDN network
+- ❌ It will NOT read your journal file (uses mock location: "Sol")
+- ✅ But you can still test the UI
+
+**To use the app for real:**
+1. Set `EDDN_MOCK_MODE=false` in `.env`
+2. Set `JOURNAL_PATH` to your actual Elite Dangerous journal directory
+3. Restart the app
 
 See `src/config/settings.py` for all available settings and defaults.
 
