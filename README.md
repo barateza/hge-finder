@@ -27,12 +27,26 @@ Run the CLI (defaults to a terminal UI):
 hge-notifier
 ```
 
+Run the CLI with real EDDN data:
+
+```pwsh
+hge-notifier --real-eddn
+```
+
 Run the web dashboard:
 
 ```pwsh
 hge-notifier --web
 # then open http://localhost:5000
 ```
+
+Run the web dashboard with real EDDN data:
+
+```pwsh
+hge-notifier --web --real-eddn
+```
+
+See `REAL_EDDN_USAGE.md` for more CLI options and VS Code debug configurations.
 
 ## Configuration
 
@@ -46,10 +60,15 @@ EDDN_MOCK_MODE=false
 # See "Finding Your Journal Folder" below for how to locate this
 JOURNAL_PATH=C:\Users\sique\Saved Games\Frontier Developments\Elite Dangerous
 
+# Discord notifications (optional)
+NOTIFICATIONS_ENABLED=true
+DISCORD_WEBHOOK_URL=https://discord.com/api/webhooks/YOUR_ID/YOUR_TOKEN
+ALERT_MAX_DISTANCE=50.0
+ALERT_MAX_AGE=24.0
+
 # Other optional settings
 REFRESH_INTERVAL=10
 LOG_LEVEL=INFO
-NOTIFICATIONS_ENABLED=false
 ```
 
 ### Finding Your Journal Folder
@@ -82,7 +101,100 @@ By default, the app runs with `EDDN_MOCK_MODE=true`, which means:
 2. Set `JOURNAL_PATH` to your actual Elite Dangerous journal directory
 3. Restart the app
 
+### All Configuration Options
+
+| Setting | Default | Purpose |
+|---------|---------|---------|
+| `EDDN_MOCK_MODE` | `true` | Set to `false` to use real EDDN |
+| `JOURNAL_PATH` | None | Your Elite Dangerous journal directory |
+| `NOTIFICATIONS_ENABLED` | `false` | Set to `true` to enable Discord alerts |
+| `DISCORD_WEBHOOK_URL` | None | Your Discord webhook URL |
+| `ALERT_MAX_DISTANCE` | `50.0` | Alert if HGE is within this many light-years |
+| `ALERT_MAX_AGE` | `24.0` | Alert if HGE signal is less than this many hours old |
+| `NOTIFICATION_COOLDOWN_SECONDS` | `60` | Minimum seconds between consecutive alerts |
+| `LOG_LEVEL` | `INFO` | `DEBUG`, `INFO`, `WARNING`, `ERROR`, or `CRITICAL` |
+| `LOG_FILE` | None | Optional: write logs to a file |
+
 See `src/config/settings.py` for all available settings and defaults.
+
+## Background Monitoring & Notifications
+
+### Quick Setup: Discord Notifications
+
+1. **Create a Discord Webhook:**
+   - Open your Discord server
+   - Go to Server Settings → Integrations → Webhooks
+   - Click "New Webhook" and name it "HGE Notifier"
+   - Choose your notification channel and copy the webhook URL
+
+2. **Add to `.env`:**
+   ```env
+   NOTIFICATIONS_ENABLED=true
+   DISCORD_WEBHOOK_URL=https://discord.com/api/webhooks/YOUR_ID/YOUR_TOKEN
+   ```
+
+3. **Run the app:**
+   ```pwsh
+   D:/repos/eddn-hge/.venv/Scripts/python.exe -m src --real-eddn
+   ```
+
+Now whenever an HGE signal is detected within your configured distance, you'll get a Discord message! 🎯
+
+### Running Without Browser
+
+You don't need the web interface open. Choose any method:
+
+**Option 1: Terminal Window (Simplest)**
+```pwsh
+D:/repos/eddn-hge/.venv/Scripts/python.exe -m src --real-eddn
+```
+Minimizable; output shows all signals in real-time.
+
+**Option 2: Windows Scheduled Task (Always-On)**
+- Create a scheduled task to run the app at login
+- App runs in background automatically
+- Restarts if it crashes
+- See `REAL_EDDN_USAGE.md` for detailed instructions
+
+**Option 3: With Logging**
+```pwsh
+D:/repos/eddn-hge/.venv/Scripts/python.exe -m src --real-eddn --log-file hge_notifier.log --log-level DEBUG
+```
+
+### Notification Filtering
+
+Control which signals trigger notifications:
+
+```env
+# Only alert on close, fresh signals
+ALERT_MAX_DISTANCE=20.0      # Within 20 ly
+ALERT_MAX_AGE=6.0             # Less than 6 hours old
+NOTIFICATION_COOLDOWN_SECONDS=600  # Wait 10 min between alerts
+```
+
+### Troubleshooting
+
+**No signals appearing?**
+- Verify `EDDN_MOCK_MODE=false` in `.env`
+- Check internet connection (EDDN requires it)
+- Wait longer — EDDN signals can be infrequent
+- View logs for errors: `Get-Content hge_notifier.log -Wait`
+
+**Discord notifications not working?**
+- Verify webhook URL is correct (copy from Discord again)
+- Check channel permissions allow bot posting
+- Test manually:
+  ```powershell
+  $url = "YOUR_WEBHOOK_URL"
+  $payload = @{content="Test"} | ConvertTo-Json
+  Invoke-WebRequest -Uri $url -Method POST -Body $payload -ContentType "application/json"
+  ```
+
+**Location shows N/A?**
+- Ensure `JOURNAL_PATH` is correct in `.env`
+- Verify journal directory exists: `Test-Path "YOUR_JOURNAL_PATH"`
+- Play Elite Dangerous to generate journal entries
+- Check logs for coordinate lookup errors
 
 ## Project layout
 

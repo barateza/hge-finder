@@ -216,12 +216,37 @@ class EDDNMonitor:
         message_type = data.get("$schemaRef", "")
         
         # HGE signals typically come from:
-        # - Codex entries
-        # - Scan events
-        # - USS (Unidentified Signal Source) discoveries
+        # - Codex entries (schema: .../codex/1)
+        # - USS (Unidentified Signal Source) discoveries (schema: .../uss/1 or .../journal/1/uss)
         
-        # For now, check if it has the right schema indicators
-        return "uss" in message_type.lower() or "codex" in message_type.lower()
+        if "uss" in message_type.lower() or "codex" in message_type.lower():
+            # Additional filtering: ensure it's actually a HIGH GRADE emission
+            # Check for HGE identifiers in the message data
+            
+            # USS messages have USSType field
+            uss_type = data.get("USSType", "").lower()
+            if "high" in uss_type and "grade" in uss_type:
+                return True
+            
+            # Codex entries might have name or description field
+            name = data.get("Name", "").lower() or data.get("name", "").lower()
+            description = data.get("Description", "").lower() or data.get("description", "").lower()
+            
+            if ("high grade emission" in name or 
+                "high grade emission" in description or
+                ("high" in name and "grade" in name) or
+                ("high" in description and "grade" in description)):
+                return True
+            
+            # Journal-based USS events (event type USSDrop with HGE threat level)
+            # These should have EventType: 'USSDrop' and USSType containing 'High grade emissions'
+            event_type = data.get("Event") or data.get("event")
+            if event_type == "USSDrop":
+                uss_type_journal = data.get("USSType", "").lower()
+                if "high" in uss_type_journal and "grade" in uss_type_journal:
+                    return True
+        
+        return False
 
     @staticmethod
     def _parse_hge_signal(data: dict) -> Optional[HGESignal]:
@@ -255,13 +280,21 @@ class EDDNMonitor:
             y = star_pos[1] if star_pos and len(star_pos) > 1 else None
             z = star_pos[2] if star_pos and len(star_pos) > 2 else None
 
-            return HGESignal(
+            signal = HGESignal(
                 system_name=system_name,
                 timestamp=timestamp,
                 x=x,
                 y=y,
                 z=z,
             )
+            
+            # Log the extracted signal for debugging
+            logger.debug(
+                f"Parsed HGE signal: {system_name} at {timestamp.isoformat()} "
+                f"coords: ({x}, {y}, {z})"
+            )
+
+            return signal
 
         except (KeyError, IndexError, ValueError) as e:
             logger.debug(f"Failed to parse HGE signal: {e}")

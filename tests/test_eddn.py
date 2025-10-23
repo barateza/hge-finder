@@ -159,26 +159,101 @@ class TestEDDNNetworkErrorHandling:
             "StarSystem": "Test System",
             "timestamp": "2025-10-22T10:00:00Z",
             "StarPos": [55.0, -49.0, 17.0],
+            "USSType": "High Grade Emissions",
         }
         
         # Should be detected as HGE message
         assert EDDNMonitor._is_hge_message(data) is True
+
+    def test_hge_message_detection_uss_without_hge_type(self) -> None:
+        """Test that non-HGE USS messages are not detected."""
+        data = {
+            "$schemaRef": "https://eddn.edcd.io/schemas/uss/1",
+            "StarSystem": "Test System",
+            "USSType": "Degraded Emissions",  # Not HGE
+        }
+        
+        # Should not be detected as HGE message
+        assert EDDNMonitor._is_hge_message(data) is False
 
     def test_hge_message_detection_codex(self) -> None:
         """Test detection of Codex HGE messages."""
         data = {
             "$schemaRef": "https://eddn.edcd.io/schemas/codex/1",
             "StarSystem": "Test System",
+            "Name": "High Grade Emission",
         }
         
         # Should be detected as HGE message
         assert EDDNMonitor._is_hge_message(data) is True
+
+    def test_hge_message_detection_codex_description(self) -> None:
+        """Test detection of Codex HGE messages via description."""
+        data = {
+            "$schemaRef": "https://eddn.edcd.io/schemas/codex/1",
+            "StarSystem": "Test System",
+            "Description": "High Grade Emission Signal",
+        }
+        
+        # Should be detected as HGE message
+        assert EDDNMonitor._is_hge_message(data) is True
+
+    def test_hge_message_detection_journal_uss_drop(self) -> None:
+        """Test detection of journal USSDrop event for HGE."""
+        data = {
+            "$schemaRef": "https://eddn.edcd.io/schemas/journal/1/uss",
+            "Event": "USSDrop",
+            "StarSystem": "Kruger 60",
+            "timestamp": "2025-10-23T15:31:09Z",
+            "StarPos": [13.78125, -17.46875, -23.03125],
+            "USSType": "High grade emissions",
+        }
+        
+        # Should be detected as HGE message
+        assert EDDNMonitor._is_hge_message(data) is True
+
+    def test_real_world_kruger_60_hge(self) -> None:
+        """Test real-world Kruger 60 HGE from user discovery (2025-10-23 15:31:09)."""
+        # This is a realistic EDDN message that would be sent for the Kruger 60 HGE
+        # discovered at 15:31:09 on 2025-10-23 (as shown in user's EDDiscovery log)
+        data = {
+            "$schemaRef": "https://eddn.edcd.io/schemas/journal/1/uss",
+            "Event": "USSDrop",
+            "StarSystem": "Kruger 60",
+            "timestamp": "2025-10-23T15:31:09Z",
+            "StarPos": [13.78125, -17.46875, -23.03125],
+            "USSType": "High grade emissions",
+            "USSThreat": 0,
+        }
+        
+        # Should be detected as valid HGE message
+        is_hge = EDDNMonitor._is_hge_message(data)
+        assert is_hge is True
+        
+        # Should parse correctly
+        signal = EDDNMonitor._parse_hge_signal(data)
+        assert signal is not None
+        assert signal.system_name == "Kruger 60"
+        assert signal.x == 13.78125
+        assert signal.y == -17.46875
+        assert signal.z == -23.03125
 
     def test_non_hge_message_detection(self) -> None:
         """Test that non-HGE messages are not detected."""
         data = {
             "$schemaRef": "https://eddn.edcd.io/schemas/commodity/1",
             "StarSystem": "Test System",
+        }
+        
+        # Should not be detected as HGE message
+        assert EDDNMonitor._is_hge_message(data) is False
+
+    def test_non_hge_codex_message_detection(self) -> None:
+        """Test that non-HGE codex messages are not detected."""
+        data = {
+            "$schemaRef": "https://eddn.edcd.io/schemas/codex/1",
+            "StarSystem": "Test System",
+            "Name": "Crystalline Shards",  # Not HGE
         }
         
         # Should not be detected as HGE message
