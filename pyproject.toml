@@ -9,7 +9,7 @@ description = "Monitor Elite Dangerous EDDN for High Grade Emission signals"
 readme = "README.md"
 requires-python = ">=3.9"
 authors = [
-    {name = "Elite Dangerous HGE Community", email = "contact@example.com"},
+    {name = "CMDR Barateza", email = "contact@example.com"},
 ]
 license = {text = "MIT"}
 keywords = ["elite-dangerous", "eddn", "hge", "notification"]
