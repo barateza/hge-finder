@@ -173,26 +173,26 @@ The system uses a modular, thread-safe architecture with real data integration:
 - **Good Modules**: 5 modules at 80-89%
 
 ### Coverage by Module (Phase 3.4.B Final)
-| Module | Coverage | Status |
-|--------|----------|--------|
-| src/__init__.py | 100% | ✅ Perfect |
-| src/config/__init__.py | 100% | ✅ Perfect |
-| src/config/settings.py | 100% | ✅ Perfect |
-| src/distance/__init__.py | 100% | ✅ Perfect |
-| src/notifications/__init__.py | 100% | ✅ Perfect |
-| src/notifications/in_app.py | 100% | ✅ Perfect |
-| src/__main__.py | 97% | ✅ Excellent |
-| src/web/__init__.py | 94% | ✅ Excellent |
-| src/notifications/manager.py | 91% | ✅ Excellent |
-| src/cli.py | 89% | ✅ Good |
-| src/notifications/models.py | 89% | ✅ Good |
-| src/distance/coordinates.py | 84% | ✅ Good |
-| src/journal/__init__.py | 85% | ✅ Good |
-| src/web/websocket.py | 85% | ✅ Good |
-| src/core.py | 82% | ✅ Good |
-| src/eddn/__init__.py | 80% | ✅ Good |
-| src/notifications/discord.py | 76% | 🟡 Fair |
-| **OVERALL** | **87%** | ✅ **EXCELLENT** |
+| Module | Coverage | Status | Analysis |
+|--------|----------|--------|----------|
+| src/__init__.py | 100% | ✅ Perfect | — |
+| src/config/__init__.py | 100% | ✅ Perfect | — |
+| src/config/settings.py | 100% | ✅ Perfect | — |
+| src/distance/__init__.py | 100% | ✅ Perfect | — |
+| src/notifications/__init__.py | 100% | ✅ Perfect | — |
+| src/notifications/in_app.py | 100% | ✅ Perfect | — |
+| src/__main__.py | 97% | ✅ Excellent | — |
+| src/web/__init__.py | 94% | ✅ Excellent | — |
+| src/notifications/manager.py | 91% | ✅ Excellent | — |
+| src/cli.py | 89% | ✅ Good | — |
+| src/notifications/models.py | 89% | ✅ Good | — |
+| src/distance/coordinates.py | 84% | ✅ Good | — |
+| src/journal/__init__.py | 85% | ✅ Good | — |
+| src/web/websocket.py | 85% | ✅ Good | — |
+| src/core.py | 82% | ✅ Good | — |
+| src/eddn/__init__.py | 80% | ✅ Good | — |
+| src/notifications/discord.py | 76% | 🟡 Fair | [Analysis](#discord-coverage-analysis) |
+| **OVERALL** | **87%** | ✅ **EXCELLENT** | Target: 88%+ |
 
 ## Phase Status
 
@@ -340,9 +340,101 @@ Notification system with Discord and in-app notifications:
   - Role-based access
   - Advanced analytics
 
+## Coverage Analysis & Improvement Guide
+
+### Current Coverage Status
+- **Overall**: 87% (1,028/1,187 statements covered)
+- **Target**: 88%+
+- **Gap**: 12% (159 statements uncovered)
+- **Status**: Approaching target with only minor improvements needed
+
+### Modules Below 88% Coverage
+
+The following modules have specific testing challenges that prevent reaching 88%+:
+
+| Module | Current | Gap | Main Challenge | Est. Effort |
+|--------|---------|-----|-----------------|------------|
+| `discord.py` | 76% | 12% | Retry logic, exception handling | 2-3 hrs |
+| `eddn/__init__.py` | 80% | 8% | Network error scenarios | 1-2 hrs |
+| `core.py` | 82% | 6% | State management edges | 1 hr |
+| `coordinates.py` | 84% | 4% | Database/API integration | 30 min |
+| `journal/__init__.py` | 85% | 3% | File I/O edge cases | 30 min |
+| `websocket.py` | 85% | 3% | Connection lifecycle | 30 min |
+
+### Discord.py Deep Dive (76% Coverage)
+
+**File**: `src/notifications/discord.py`  
+**Statements**: 72 total (55 covered, 17 missing)
+
+**Missing 17 Statements** (5 line ranges):
+
+1. **Initialization Validation** (Line 34) - 1 stmt - 🟢 EASY
+   - Invalid webhook URL rejection
+   - Fix: 3 test cases (5 minutes)
+   - Impact: +1.4% coverage
+
+2. **Timeout Retry Path** (Line 119) - 1 stmt - 🔴 HARD
+   - Exponential backoff continuation
+   - Fix: Multi-step mock sequence test (30 minutes)
+   - Impact: +1.4% coverage
+
+3. **ConnectionError Retry** (Lines 187-195) - 9 stmts - 🔴 HARD
+   - Retry logic with exponential backoff
+   - Fix: Complex mock sequencing (30 minutes)
+   - Impact: +12.5% coverage
+
+4. **Generic Exception Handler** (Lines 198-206) - 8 stmts - 🟡 MEDIUM
+   - Catch-all for unexpected exceptions
+   - Fix: Test with ValueError/TypeError (10 minutes)
+   - Impact: +11% coverage
+
+5. **HTTP Error Catch-All** (Line 108) - 1 stmt - 🟡 MEDIUM
+   - Generic HTTP error response
+   - Fix: Verification of existing tests (5 minutes)
+   - Impact: +1.4% coverage
+
+**Main Difficulty**: The retry logic (Lines 119, 187-195) accounts for **10 out of 17** missing statements. These are hard to test because they require:
+- Multi-step mock sequences (fail → fail → succeed)
+- Precise exception type handling
+- State tracking (attempt counter, exponential backoff delays)
+- Verification of time.sleep() call sequences
+
+**Recommended Approach**: Start with initialization validation (easy win), then tackle exception handling, then retry logic.
+
+**Detailed Analysis**: See [DISCORD_COVERAGE_ANALYSIS.md](DISCORD_COVERAGE_ANALYSIS.md) for comprehensive technical breakdown with complete code examples and test templates.
+
+**Quick Reference**: See [DISCORD_COVERAGE_QUICK_REFERENCE.md](DISCORD_COVERAGE_QUICK_REFERENCE.md) for priority roadmap and quick lookup tables.
+
+### Documentation Files
+
+**Main Documentation**:
+- **README.md** - This file (main documentation)
+- **ROADMAP.md** - Project timeline and phase progress
+- **QUICK_REFERENCE.md** - Quick access guide for users
+
+**Getting Started**:
+- **00-START-HERE.md** - Entry point for new users
+- **DOCUMENTATION_INDEX.md** - Central navigation index
+
+**Phase Completion**:
+- **PHASE3_4B_SUMMARY.md** - Comprehensive Phase 3.4.B completion report (4000+ lines)
+- **PHASE3_4B_COMPLETE.txt** - Quick reference completion verification
+- **DOCUMENTATION_UPDATE_LOG.md** - Documentation update tracking
+
+**Coverage Analysis**:
+- **DISCORD_COVERAGE_ANALYSIS.md** - Detailed technical analysis of discord.py
+- **DISCORD_COVERAGE_SUMMARY.md** - Executive summary of coverage gaps
+- **DISCORD_COVERAGE_QUICK_REFERENCE.md** - Priority roadmap and test templates
+
 ## Contributing
 
 Contributions are welcome! Please ensure code follows PEP-8 and includes type hints.
+
+Specific areas for contribution:
+- **Coverage Improvements**: See coverage analysis documents for high-impact areas
+- **New Features**: Check ROADMAP.md for Phase 4.0+ planned features
+- **Bug Fixes**: File issues with reproduction steps
+- **Documentation**: Help improve guides and API documentation
 
 ## License
 

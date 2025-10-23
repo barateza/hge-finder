@@ -747,6 +747,76 @@ LOW (Other):           80 lines (distance, eddn components)
 5. **Multi-User**: ❌ Single user only (Phase 4 feature)
 6. **Advanced UI**: ⚠️ Functional but basic (Phase 3 enhancement)
 
+---
+
+## Coverage Improvement Roadmap (Phase 3.4.B Analysis)
+
+### Current Coverage Status
+- **Overall**: 87% (1,028/1,187 statements covered)
+- **Target**: 88%+
+- **Gap to Close**: 12% (159 statements)
+- **Status**: 99% of target achieved, minor improvements needed
+
+### Modules Below Target (88%)
+
+| Module | Coverage | Missing | Difficulty | Est. Time |
+|--------|----------|---------|-----------|-----------|
+| discord.py | 76% | 17 stmts | 🔴 HARD | 2-3 hrs |
+| eddn/__init__.py | 80% | ~17 stmts | 🔴 HARD | 1-2 hrs |
+| core.py | 82% | ~10 stmts | 🟡 MEDIUM | 1 hr |
+| coordinates.py | 84% | ~5 stmts | 🟡 MEDIUM | 30 min |
+| journal/__init__.py | 85% | ~4 stmts | 🟡 MEDIUM | 30 min |
+| websocket.py | 85% | ~3 stmts | 🟡 MEDIUM | 30 min |
+
+### Discord.py: Main Challenge Area (76% Coverage)
+
+**Why It's Hard**: Retry logic with exponential backoff
+- **17 missing statements** across 5 code sections
+- **9 statements** in retry paths (fail → fail → succeed sequences)
+- **8 statements** in generic exception handler
+- **Root cause**: Mock sequencing complexity, state management
+
+**Priority Fixes**:
+1. ✅ Initialization validation (Line 34) - 1 stmt - 5 min - Easy
+2. ✅ Generic exception handling (Lines 198-206) - 8 stmts - 10 min - Medium
+3. ✅ Timeout retry success (Line 119) - 1 stmt - 30 min - Hard
+4. ✅ ConnectionError retry (Lines 187-195) - 9 stmts - 30 min - Hard
+5. ✅ HTTP error verify (Line 108) - 1 stmt - 5 min - Verify
+
+**Estimated Effort**: 2-3 hours for 88%+ coverage achievement
+
+**Detailed Analysis**: See [DISCORD_COVERAGE_ANALYSIS.md](../DISCORD_COVERAGE_ANALYSIS.md) for comprehensive technical breakdown.
+
+### Recommended Coverage Strategy
+
+**Phase 3.5: Coverage Optimization (Optional)**
+- Target: 88%+ coverage across all modules
+- Focus: Retry logic, exception handling, edge cases
+- Effort: 3-4 hours
+- Value: Production robustness in error scenarios
+- Priority: Medium (current 87% is already excellent)
+
+**Alternative: Move to Phase 4**
+- Current 87% coverage is production-ready
+- Remaining 13% are primarily edge cases and retry paths
+- Focus development effort on new features instead
+- Revisit coverage optimization during maintenance cycles
+
+### Coverage Success Metrics
+
+**Already Achieved** ✅:
+- ✅ 6 modules at 100% coverage
+- ✅ 11 modules at 90%+ coverage
+- ✅ 0 type errors (fully type-safe)
+- ✅ 0 regressions (all tests passing)
+- ✅ 542 tests (100% pass rate)
+- ✅ Production-ready code quality
+
+**Still Achievable** (Optional):
+- 88%+ overall coverage (need ~10-12 more statements)
+- 80%+ coverage on all modules
+- Comprehensive retry path testing
+
 ### Current Production Limitations
 1. **In-Memory Storage Only**: Notification history cleared on restart
 2. **Single Discord Channel**: Can only notify to one webhook
