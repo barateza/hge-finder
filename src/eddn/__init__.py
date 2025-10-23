@@ -6,7 +6,7 @@ import threading
 import time
 import zmq
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Optional, Callable
 
 
@@ -34,7 +34,7 @@ class HGESignal:
 
     def age_seconds(self) -> int:
         """Get age of signal in seconds."""
-        return int((datetime.utcnow() - self.timestamp).total_seconds())
+        return int((datetime.now(timezone.utc) - self.timestamp).total_seconds())
 
     def age_human_readable(self) -> str:
         """Get human-readable age of signal."""

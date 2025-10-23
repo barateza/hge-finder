@@ -4,7 +4,7 @@ import json
 import logging
 import threading
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Optional, Callable
 
@@ -128,7 +128,7 @@ class JournalParser:
         """Initialize with mock location for testing."""
         self.latest_location = CommanderLocation(
             system_name="Sol",
-            timestamp=datetime.utcnow(),
+            timestamp=datetime.now(timezone.utc),
             x=0.0,
             y=0.0,
             z=0.0,
@@ -333,5 +333,5 @@ class JournalParser:
             return datetime.fromisoformat(timestamp_str.replace("Z", "+00:00"))
         except (ValueError, AttributeError):
             logger.debug(f"Could not parse timestamp: {timestamp_str}")
-            return datetime.utcnow()
+            return datetime.now(timezone.utc)
 
