@@ -41,3 +41,4 @@ env/
 logs/
 .external-documentation/
 data/
+coordinates.db
