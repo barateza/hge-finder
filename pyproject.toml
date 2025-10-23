@@ -43,10 +43,10 @@ dev = [
 ]
 
 [project.scripts]
-hge-notifier = "hge_notifier.cli:main"
+hge-notifier = "src:main"
 
-[tool.setuptools.packages.find]
-where = ["src"]
+[tool.setuptools]
+packages = ["src"]
 
 [tool.black]
 line-length = 100
