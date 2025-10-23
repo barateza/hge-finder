@@ -42,3 +42,5 @@ logs/
 .external-documentation/
 data/
 coordinates.db
+/data
+data/coordinates.db
