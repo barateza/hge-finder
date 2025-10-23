@@ -12,11 +12,11 @@ logger = logging.getLogger(__name__)
 class WebSocketManager:
     """Manages WebSocket connections and real-time event broadcasting."""
 
-    def __init__(self, async_mode: str = "threading") -> None:
+    def __init__(self, async_mode: str = "asgi") -> None:
         """Initialize WebSocket manager.
 
         Args:
-            async_mode: The async mode for Socket.IO ("threading", "eventlet", "gevent", etc.)
+            async_mode: The async mode for Socket.IO ("asgi" for async support)
         """
         self.sio: Optional[SocketIOAsyncServer] = None
         self.async_mode = async_mode

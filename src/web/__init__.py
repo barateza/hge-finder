@@ -2157,7 +2157,7 @@ def run_server(
     # Create WebSocket manager if enabled
     ws_manager = None
     if enable_websocket:
-        ws_manager = WebSocketManager(async_mode="threading")
+        ws_manager = WebSocketManager(async_mode="asgi")
         manager.websocket_manager = ws_manager
     
     app = create_app(manager, ws_manager)
@@ -2165,11 +2165,11 @@ def run_server(
     
     try:
         if ws_manager:
-            # Use python-socketio with Flask
-            from socketio import WSGIApp
-            app_with_socketio = WSGIApp(ws_manager.sio, app)
-            from werkzeug.serving import run_simple
-            run_simple(host, port, app_with_socketio, use_reloader=debug, use_debugger=debug)
+            # Use python-socketio with Flask via ASGIApp for async support
+            from socketio import ASGIApp
+            app_with_socketio = ASGIApp(ws_manager.sio, app)
+            import uvicorn
+            uvicorn.run(app_with_socketio, host=host, port=port, log_level="info")
         else:
             app.run(host=host, port=port, debug=debug)
     finally:
