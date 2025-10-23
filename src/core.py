@@ -75,7 +75,7 @@ class HGENotifierManager:
             try:
                 signal_data = self._format_signal(signal)
                 if signal_data:
-                    asyncio.create_task(self.websocket_manager.emit_hge_signal(signal_data))
+                    asyncio.ensure_future(self.websocket_manager.emit_hge_signal(signal_data))
             except Exception as e:
                 self.logger.debug(f"Error emitting WebSocket event: {e}")
         
@@ -108,14 +108,14 @@ class HGENotifierManager:
             try:
                 location_data = self._format_location(location)
                 if location_data:
-                    asyncio.create_task(self.websocket_manager.emit_location_update(location_data))
+                    asyncio.ensure_future(self.websocket_manager.emit_location_update(location_data))
                 
                 # Also emit distance update if we have a signal
                 signal = self.eddn_monitor.get_latest_signal()
                 if signal:
                     distance_data = self._calculate_distance(signal, location)
                     if distance_data:
-                        asyncio.create_task(self.websocket_manager.emit_distance_update(distance_data))
+                        asyncio.ensure_future(self.websocket_manager.emit_distance_update(distance_data))
             except Exception as e:
                 self.logger.debug(f"Error emitting WebSocket event: {e}")
 
@@ -194,21 +194,32 @@ class HGENotifierManager:
         """
         Enrich location with coordinates if missing.
 
+        Priority: use journal coordinates if available, fallback to EDSM.
+
         Args:
             location: Commander location
 
         Returns:
             Location with coordinates filled in if possible
         """
-        if location is None or (location.x is not None and location.y is not None and location.z is not None):
+        if location is None:
             return location
 
+        # If all coordinates are already present, return as-is
+        if location.x is not None and location.y is not None and location.z is not None:
+            return location
+
+        # Try to get from database/EDSM if missing
         try:
+            self.logger.debug(f"Attempting to enrich coordinates for {location.system_name}")
             coords = self.coord_db.get_coordinates(location.system_name)
             if coords:
                 location.x, location.y, location.z = coords
+                self.logger.debug(f"Enriched {location.system_name} with EDSM coordinates: {coords}")
+            else:
+                self.logger.debug(f"Could not find coordinates for {location.system_name} in EDSM")
         except Exception as e:
-            self.logger.debug(f"Error fetching coordinates for {location.system_name}: {e}")
+            self.logger.warning(f"Error fetching coordinates for {location.system_name}: {e}")
 
         return location
 
