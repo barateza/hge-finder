@@ -40,10 +40,11 @@ class HGENotifierManager:
             callback=self._on_new_hge_signal,
         )
         
-        # Initialize journal parser with callback
+        # Initialize journal parser with both location and HGE callbacks
         self.journal_parser = JournalParser(
             journal_path=self.settings.journal_path,
             callback=self._on_location_change,
+            hge_callback=self._on_new_hge_signal,
         )
         
         self.distance_calculator = DistanceCalculator()
@@ -110,20 +111,31 @@ class HGENotifierManager:
         self.logger.info(f"Location changed to {location.system_name}")
 
         # Emit WebSocket event if manager is available
+        # Note: These are async calls in a sync context, so we don't try to await them
         if self.websocket_manager:
             try:
                 location_data = self._format_location(location)
                 if location_data:
-                    asyncio.ensure_future(self.websocket_manager.emit_location_update(location_data))
+                    # Schedule async emit without awaiting (fire-and-forget)
+                    try:
+                        loop = asyncio.get_running_loop()
+                        loop.create_task(self.websocket_manager.emit_location_update(location_data))
+                    except RuntimeError:
+                        # No event loop in this thread - skip WebSocket update
+                        pass
                 
                 # Also emit distance update if we have a signal
                 signal = self.eddn_monitor.get_latest_signal()
                 if signal:
                     distance_data = self._calculate_distance(signal, location)
                     if distance_data:
-                        asyncio.ensure_future(self.websocket_manager.emit_distance_update(distance_data))
+                        try:
+                            loop = asyncio.get_running_loop()
+                            loop.create_task(self.websocket_manager.emit_distance_update(distance_data))
+                        except RuntimeError:
+                            pass
             except Exception as e:
-                self.logger.debug(f"Error emitting WebSocket event: {e}")
+                self.logger.debug(f"Error scheduling WebSocket event: {e}")
 
     def start(self) -> None:
         """Start monitoring EDDN and journal."""

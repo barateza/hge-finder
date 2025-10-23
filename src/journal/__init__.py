@@ -8,7 +8,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Optional, Callable
 
-from watchdog.events import FileSystemEventHandler, FileModifiedEvent
+from watchdog.events import FileSystemEventHandler, FileModifiedEvent, DirModifiedEvent, FileSystemEvent
 from watchdog.observers import Observer
 
 
@@ -47,12 +47,12 @@ class JournalFileHandler(FileSystemEventHandler):
         """
         self.parser = parser
 
-    def on_modified(self, event: FileModifiedEvent) -> None:
+    def on_modified(self, event: FileSystemEvent) -> None:
         """Handle file modification events."""
         if event.is_directory:
             return
 
-        file_path = Path(event.src_path)
+        file_path = Path(str(event.src_path))
         
         # Only process journal files
         if not file_path.name.startswith("Journal.") or not file_path.suffix == ".log":
@@ -68,6 +68,7 @@ class JournalParser:
         self,
         journal_path: Optional[Path] = None,
         callback: Optional[Callable] = None,
+        hge_callback: Optional[Callable] = None,
     ) -> None:
         """
         Initialize journal parser.
@@ -75,9 +76,11 @@ class JournalParser:
         Args:
             journal_path: Path to the journal directory.
             callback: Optional callback function to call when location changes.
+            hge_callback: Optional callback function to call when HGE signal detected.
         """
         self.journal_path = journal_path
         self.callback = callback
+        self.hge_callback = hge_callback
         self.latest_location: Optional[CommanderLocation] = None
         self.is_running = False
         self._observer = None  # type: ignore
@@ -225,6 +228,10 @@ class JournalParser:
             self._handle_fsd_jump_event(entry)
         elif event_type == "SupercruiseExit":
             self._handle_location_event(entry)
+        elif event_type == "USSDrop":
+            self._handle_uss_drop_event(entry)
+        elif event_type == "SupercruiseDestinationDrop":
+            self._handle_uss_drop_event(entry)
 
     def _handle_location_event(self, entry: dict) -> None:
         """Handle Location event from journal."""
@@ -277,6 +284,39 @@ class JournalParser:
 
         except Exception as e:
             logger.error(f"Error processing FSDJump event: {e}")
+
+    def _handle_uss_drop_event(self, entry: dict) -> None:
+        """Handle USSDrop and SupercruiseDestinationDrop events (HGE signals)."""
+        try:
+            # Check if this is an HGE signal
+            uss_type = entry.get("USSType_Localised") or entry.get("Type_Localised") or ""
+            if "high" not in uss_type.lower() or "grade" not in uss_type.lower():
+                # Not a high grade emission
+                return
+            
+            logger.info(f"HGE signal detected in journal: {uss_type}")
+            
+            # If we have HGE callback, create a signal from current location
+            if self.hge_callback and self.latest_location:
+                from src.eddn import HGESignal
+                
+                timestamp_str = entry.get("timestamp", "")
+                timestamp = self._parse_timestamp(timestamp_str)
+                
+                # Create HGE signal from current location
+                signal = HGESignal(
+                    system_name=self.latest_location.system_name,
+                    timestamp=timestamp,
+                    x=self.latest_location.x,
+                    y=self.latest_location.y,
+                    z=self.latest_location.z,
+                )
+                
+                logger.info(f"Calling HGE callback for: {self.latest_location.system_name}")
+                self.hge_callback(signal)
+                
+        except Exception as e:
+            logger.error(f"Error processing USS drop event: {e}")
 
     @staticmethod
     def _parse_timestamp(timestamp_str: str) -> datetime:

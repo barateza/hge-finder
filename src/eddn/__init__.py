@@ -51,7 +51,17 @@ class HGESignal:
 
 
 class EDDNMonitor:
-    """Monitor Elite Dangerous Data Network for HGE signals."""
+    """Monitor Elite Dangerous Data Network for HGE signals.
+    
+    HGE signals reach EDDN via:
+    1. FSSSignalDiscovered schema events when players discover USS signals via FSS
+    2. Specifically: USS with USSType = "$USS_Type_VeryValuableSalvage;"
+    
+    This allows tracking HGE across the galaxy from other players' discoveries.
+    
+    Note: Local HGE drops (from your own journal) are detected separately via
+    the JournalParser which listens for USSDrop/SupercruiseDestinationDrop events.
+    """
 
     # EDDN connection settings
     EDDN_ENDPOINT = "tcp://eddn.edcd.io:9500"
@@ -124,12 +134,13 @@ class EDDNMonitor:
 
     def _connect_and_monitor(self) -> None:
         """Connect to real EDDN and monitor for signals."""
+        logger.info("📊 EDDN monitoring thread started")
         while self.is_running:
             try:
                 self._connect_to_eddn()
                 self._monitor_eddn_stream()
             except Exception as e:
-                logger.error(f"Error in EDDN monitoring: {e}")
+                logger.error(f"❌ Error in EDDN monitoring: {e}", exc_info=True)
                 self._handle_reconnect()
 
     def _connect_to_eddn(self) -> None:
@@ -165,12 +176,20 @@ class EDDNMonitor:
         message_count = 0
         hge_count = 0
         logged_message_types = set()
+        timeout_count = 0
+        first_message = True
         
         while self.is_running:
             try:
                 assert self.zmq_socket is not None, "ZMQ socket not initialized"
                 message = self.zmq_socket.recv_multipart()
+                timeout_count = 0  # Reset timeout counter on success
                 message_count += 1
+                
+                # Log the FIRST message we receive to verify schema
+                if first_message:
+                    first_message = False
+                    logger.info(f"📨 First EDDN message received! (message size: {len(message)} parts)")
                 
                 # Log sample of message types (first 10 unique types)
                 if len(message) >= 2:
@@ -179,13 +198,13 @@ class EDDNMonitor:
                         schema_ref = data.get("$schemaRef", "unknown")
                         if schema_ref not in logged_message_types and len(logged_message_types) < 10:
                             logged_message_types.add(schema_ref)
-                            logger.debug(f"[EDDN Stream] Sample message type: {schema_ref}")
+                            logger.info(f"[EDDN Stream] Sample message type #{len(logged_message_types)}: {schema_ref}")
                         
                         # Periodic summary logging
                         if message_count % 100 == 0:
                             logger.info(f"[EDDN Stream] Received {message_count} messages, {hge_count} HGE signals detected")
-                    except json.JSONDecodeError:
-                        pass
+                    except json.JSONDecodeError as e:
+                        logger.warning(f"Failed to parse JSON from EDDN: {e}")
                 
                 # Process and track HGE signals
                 result = self._process_eddn_message(message)
@@ -193,30 +212,45 @@ class EDDNMonitor:
                     hge_count += 1
                     
             except zmq.error.Again:
-                # Timeout - no message received, that's ok
+                # Timeout - no message received in 5 seconds
+                timeout_count += 1
+                if timeout_count == 1:
+                    logger.warning(f"⏱️ EDDN stream timeout (no messages for 5s after connection)")
+                if timeout_count % 60 == 0:  # Log every 300 seconds of timeouts
+                    logger.warning(f"⏱️ EDDN stream still timing out (no messages for {timeout_count * 5}s). Received {message_count} total messages in this session.")
                 continue
             except Exception as e:
-                logger.error(f"Error receiving message: {e}")
+                logger.error(f"❌ Error receiving message: {e}", exc_info=True)
                 raise
 
     def _process_eddn_message(self, message: list) -> bool:
         """
         Process received EDDN message.
 
-        EDDN messages are multipart:
-        [0] = header (not used)
-        [1] = JSON payload
+        EDDN messages are single-part, zlib-compressed JSON.
         
         Returns:
             True if HGE signal was detected and processed, False otherwise
         """
         try:
-            if len(message) < 2:
+            if len(message) < 1:
                 return False
 
-            # Decompress and parse JSON
-            json_str = message[1]
-            data = json.loads(json_str)
+            # Decompress the message
+            try:
+                import zlib
+                decompressed = zlib.decompress(message[0])
+                json_str = decompressed.decode('utf-8')
+            except Exception as e:
+                logger.debug(f"Failed to decompress message: {e}")
+                return False
+            
+            # Parse JSON
+            try:
+                data = json.loads(json_str)
+            except json.JSONDecodeError as e:
+                logger.debug(f"Failed to parse JSON: {e}")
+                return False
 
             # Check if this is a HighGradeEmission message
             if self._is_hge_message(data):
@@ -230,9 +264,6 @@ class EDDNMonitor:
                     return True
             return False
 
-        except json.JSONDecodeError as e:
-            logger.debug(f"Failed to parse JSON: {e}")
-            return False
         except Exception as e:
             logger.error(f"Error processing EDDN message: {e}")
             return False
@@ -240,52 +271,59 @@ class EDDNMonitor:
     @staticmethod
     def _is_hge_message(data: dict) -> bool:
         """
-        Check if message is a HighGradeEmission event.
+        Check if message contains a HighGradeEmission signal.
+
+        EDDN FSSSignalDiscovered format:
+        {
+            "$schemaRef": "https://eddn.edcd.io/schemas/fsssignaldiscovered/1",
+            "header": {...},
+            "message": {
+                "StarSystem": "...",
+                "StarPos": [...],
+                "signals": [
+                    {
+                        "USSType": "$USS_Type_VeryValuableSalvage;",
+                        ...
+                    },
+                    ...
+                ],
+                ...
+            }
+        }
 
         Args:
             data: Parsed EDDN message
 
         Returns:
-            True if message contains HGE data
+            True if message contains HGE signal (USS_Type_VeryValuableSalvage)
         """
-        # Check various message types that might contain HGE data
-        message_type = data.get("$schemaRef", "")
-        
-        # HGE signals typically come from:
-        # - Codex entries (schema: .../codex/1)
-        # - USS (Unidentified Signal Source) discoveries (schema: .../uss/1 or .../journal/1/uss)
-        
-        if "uss" in message_type.lower() or "codex" in message_type.lower():
-            # Additional filtering: ensure it's actually a HIGH GRADE emission
-            # Check for HGE identifiers in the message data
+        try:
+            schema_ref = data.get("$schemaRef", "").lower()
             
-            # USS messages have USSType field
-            uss_type = data.get("USSType", "").lower()
-            if "high" in uss_type and "grade" in uss_type:
-                logger.debug(f"✓ HGE detected via USSType: {uss_type}")
-                return True
+            # Only process FSS signal discovered events
+            if "fsssignaldiscovered" not in schema_ref:
+                return False
             
-            # Codex entries might have name or description field
-            name = data.get("Name", "").lower() or data.get("name", "").lower()
-            description = data.get("Description", "").lower() or data.get("description", "").lower()
+            message = data.get("message", {})
+            if not isinstance(message, dict):
+                return False
             
-            if ("high grade emission" in name or 
-                "high grade emission" in description or
-                ("high" in name and "grade" in name) or
-                ("high" in description and "grade" in description)):
-                logger.debug(f"✓ HGE detected via name/description")
-                return True
+            # Check for HGE in signals array
+            signals = message.get("signals", [])
+            if not isinstance(signals, list):
+                return False
             
-            # Journal-based USS events (event type USSDrop with HGE threat level)
-            # These should have EventType: 'USSDrop' and USSType containing 'High grade emissions'
-            event_type = data.get("Event") or data.get("event")
-            if event_type == "USSDrop":
-                uss_type_journal = data.get("USSType", "").lower()
-                if "high" in uss_type_journal and "grade" in uss_type_journal:
-                    logger.debug(f"✓ HGE detected via USSDrop event: {uss_type_journal}")
+            for signal in signals:
+                uss_type = signal.get("USSType", "")
+                # HGE is $USS_Type_VeryValuableSalvage;
+                if "USS_Type_VeryValuableSalvage" in uss_type:
+                    logger.debug(f"HGE detected: {uss_type}")
                     return True
-        
-        return False
+            
+            return False
+        except Exception as e:
+            logger.debug(f"Error checking if HGE message: {e}")
+            return False
 
     @staticmethod
     def _parse_hge_signal(data: dict) -> Optional[HGESignal]:
@@ -293,19 +331,21 @@ class EDDNMonitor:
         Parse HGE signal from EDDN message.
 
         Args:
-            data: Parsed EDDN message
+            data: Parsed EDDN message (must have passed _is_hge_message check)
 
         Returns:
             HGESignal object or None if parsing fails
         """
         try:
+            message = data.get("message", {})
+            
             # Extract system name
-            system_name = data.get("StarSystem")
+            system_name = message.get("StarSystem")
             if not system_name:
                 return None
 
             # Extract timestamp
-            timestamp_str = data.get("timestamp")
+            timestamp_str = message.get("timestamp")
             if not timestamp_str:
                 timestamp = datetime.utcnow()
             else:
@@ -314,7 +354,7 @@ class EDDNMonitor:
                 )
 
             # Extract coordinates
-            star_pos = data.get("StarPos")
+            star_pos = message.get("StarPos")
             x = star_pos[0] if star_pos and len(star_pos) > 0 else None
             y = star_pos[1] if star_pos and len(star_pos) > 1 else None
             z = star_pos[2] if star_pos and len(star_pos) > 2 else None
@@ -327,7 +367,6 @@ class EDDNMonitor:
                 z=z,
             )
             
-            # Log the extracted signal for debugging
             logger.debug(
                 f"Parsed HGE signal: {system_name} at {timestamp.isoformat()} "
                 f"coords: ({x}, {y}, {z})"
@@ -335,7 +374,7 @@ class EDDNMonitor:
 
             return signal
 
-        except (KeyError, IndexError, ValueError) as e:
+        except (KeyError, IndexError, ValueError, TypeError) as e:
             logger.debug(f"Failed to parse HGE signal: {e}")
             return None
 
