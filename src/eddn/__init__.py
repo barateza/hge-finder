@@ -140,6 +140,8 @@ class EDDNMonitor:
             self.zmq_context = zmq.Context()
             self.zmq_socket = self.zmq_context.socket(zmq.SUB)
             
+            assert self.zmq_socket is not None, "Failed to create ZMQ socket"
+            
             # Subscribe to all messages (empty subscribe = all)
             self.zmq_socket.setsockopt(zmq.SUBSCRIBE, b"")
             
@@ -161,6 +163,7 @@ class EDDNMonitor:
         """Monitor EDDN stream for messages."""
         while self.is_running:
             try:
+                assert self.zmq_socket is not None, "ZMQ socket not initialized"
                 message = self.zmq_socket.recv_multipart()
                 self._process_eddn_message(message)
             except zmq.error.Again:
