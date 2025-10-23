@@ -70,14 +70,20 @@ class HGENotifierManager:
         """
         self.logger.info(f"New HGE signal in {signal.system_name}")
 
-        # Emit WebSocket event if manager is available
+        # Emit WebSocket event if manager is available (non-blocking, silently fails if no event loop)
         if self.websocket_manager:
             try:
                 signal_data = self._format_signal(signal)
                 if signal_data:
-                    asyncio.ensure_future(self.websocket_manager.emit_hge_signal(signal_data))
+                    try:
+                        # Try to get the running event loop
+                        loop = asyncio.get_running_loop()
+                        loop.create_task(self.websocket_manager.emit_hge_signal(signal_data))
+                    except RuntimeError:
+                        # No event loop in this thread - that's OK for sync callbacks
+                        self.logger.debug("No event loop in current thread for WebSocket emit")
             except Exception as e:
-                self.logger.debug(f"Error emitting WebSocket event: {e}")
+                self.logger.debug(f"Error preparing WebSocket event: {e}")
         
         # Try to send notification if commander location is available
         try:

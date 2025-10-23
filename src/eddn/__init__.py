@@ -134,7 +134,7 @@ class EDDNMonitor:
 
     def _connect_to_eddn(self) -> None:
         """Establish ZMQ connection to EDDN."""
-        logger.info(f"Connecting to EDDN at {self.EDDN_ENDPOINT}")
+        logger.info(f"🔌 Connecting to EDDN at {self.EDDN_ENDPOINT}")
         
         try:
             self.zmq_context = zmq.Context()
@@ -151,21 +151,47 @@ class EDDNMonitor:
             # Connect
             self.zmq_socket.connect(self.EDDN_ENDPOINT)
             
-            logger.info("Successfully connected to EDDN")
+            logger.info(f"✅ Successfully connected to EDDN at {self.EDDN_ENDPOINT}")
+            logger.info("📡 Starting to receive EDDN stream... (first message may take a few seconds)")
             self._reconnect_count = 0  # Reset reconnect counter
             
         except Exception as e:
-            logger.error(f"Failed to connect to EDDN: {e}")
+            logger.error(f"❌ Failed to connect to EDDN: {e}")
             self._close_zmq()
             raise
 
     def _monitor_eddn_stream(self) -> None:
         """Monitor EDDN stream for messages."""
+        message_count = 0
+        hge_count = 0
+        logged_message_types = set()
+        
         while self.is_running:
             try:
                 assert self.zmq_socket is not None, "ZMQ socket not initialized"
                 message = self.zmq_socket.recv_multipart()
-                self._process_eddn_message(message)
+                message_count += 1
+                
+                # Log sample of message types (first 10 unique types)
+                if len(message) >= 2:
+                    try:
+                        data = json.loads(message[1])
+                        schema_ref = data.get("$schemaRef", "unknown")
+                        if schema_ref not in logged_message_types and len(logged_message_types) < 10:
+                            logged_message_types.add(schema_ref)
+                            logger.debug(f"[EDDN Stream] Sample message type: {schema_ref}")
+                        
+                        # Periodic summary logging
+                        if message_count % 100 == 0:
+                            logger.info(f"[EDDN Stream] Received {message_count} messages, {hge_count} HGE signals detected")
+                    except json.JSONDecodeError:
+                        pass
+                
+                # Process and track HGE signals
+                result = self._process_eddn_message(message)
+                if result:  # We'll return True if HGE was detected
+                    hge_count += 1
+                    
             except zmq.error.Again:
                 # Timeout - no message received, that's ok
                 continue
@@ -173,17 +199,20 @@ class EDDNMonitor:
                 logger.error(f"Error receiving message: {e}")
                 raise
 
-    def _process_eddn_message(self, message: list) -> None:
+    def _process_eddn_message(self, message: list) -> bool:
         """
         Process received EDDN message.
 
         EDDN messages are multipart:
         [0] = header (not used)
         [1] = JSON payload
+        
+        Returns:
+            True if HGE signal was detected and processed, False otherwise
         """
         try:
             if len(message) < 2:
-                return
+                return False
 
             # Decompress and parse JSON
             json_str = message[1]
@@ -194,15 +223,19 @@ class EDDNMonitor:
                 signal = self._parse_hge_signal(data)
                 if signal:
                     self.latest_signal = signal
-                    logger.info(f"New HGE signal: {signal.system_name}")
+                    logger.info(f"🎯 New HGE signal detected: {signal.system_name}")
                     
                     if self.callback:
                         self.callback(signal)
+                    return True
+            return False
 
         except json.JSONDecodeError as e:
             logger.debug(f"Failed to parse JSON: {e}")
+            return False
         except Exception as e:
             logger.error(f"Error processing EDDN message: {e}")
+            return False
 
     @staticmethod
     def _is_hge_message(data: dict) -> bool:
@@ -229,6 +262,7 @@ class EDDNMonitor:
             # USS messages have USSType field
             uss_type = data.get("USSType", "").lower()
             if "high" in uss_type and "grade" in uss_type:
+                logger.debug(f"✓ HGE detected via USSType: {uss_type}")
                 return True
             
             # Codex entries might have name or description field
@@ -239,6 +273,7 @@ class EDDNMonitor:
                 "high grade emission" in description or
                 ("high" in name and "grade" in name) or
                 ("high" in description and "grade" in description)):
+                logger.debug(f"✓ HGE detected via name/description")
                 return True
             
             # Journal-based USS events (event type USSDrop with HGE threat level)
@@ -247,6 +282,7 @@ class EDDNMonitor:
             if event_type == "USSDrop":
                 uss_type_journal = data.get("USSType", "").lower()
                 if "high" in uss_type_journal and "grade" in uss_type_journal:
+                    logger.debug(f"✓ HGE detected via USSDrop event: {uss_type_journal}")
                     return True
         
         return False
