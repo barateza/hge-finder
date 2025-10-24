@@ -149,24 +149,40 @@ def create_app(manager: HGENotifierManager, ws_manager: WebSocketManager | None 
                     "status": "success",
                     "data": {
                         "total_signals": 0,
+                        "avg_distance": 0,
+                        "min_distance": 0,
+                        "max_distance": 0,
                         "hourly_distribution": {},
                     }
                 })
             
             hourly = {}
+            distances = []
             for signal in signal_history:
                 try:
                     from datetime import datetime
                     ts = datetime.fromisoformat(signal["timestamp"])
                     hour = ts.strftime("%H:00")
                     hourly[hour] = hourly.get(hour, 0) + 1
+                    
+                    # Collect distances
+                    if signal.get("distance_ly") and signal.get("distance_ly") > 0:
+                        distances.append(signal.get("distance_ly"))
                 except (KeyError, ValueError):
                     continue
+            
+            # Calculate distance statistics
+            avg_distance = sum(distances) / len(distances) if distances else 0
+            min_distance = min(distances) if distances else 0
+            max_distance = max(distances) if distances else 0
             
             return jsonify({
                 "status": "success",
                 "data": {
                     "total_signals": len(signal_history),
+                    "avg_distance": round(avg_distance, 2),
+                    "min_distance": round(min_distance, 2),
+                    "max_distance": round(max_distance, 2),
                     "hourly_distribution": hourly,
                 }
             })

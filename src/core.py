@@ -359,6 +359,7 @@ class HGENotifierManager:
                     "timestamp": signal.timestamp.isoformat(),
                     "age": signal.age_human_readable(),
                     "distance": 0,
+                    "distance_ly": 0,
                     "coordinates": {
                         "x": signal.x,
                         "y": signal.y,
@@ -374,7 +375,9 @@ class HGENotifierManager:
                             signal.x, signal.y, signal.z
                         )
                         if distance is not None:
-                            signal_data["distance"] = round(distance, 2)
+                            distance_rounded = round(distance, 2)
+                            signal_data["distance"] = distance_rounded
+                            signal_data["distance_ly"] = distance_rounded
                     except Exception as e:
                         self.logger.debug(f"Error calculating distance: {e}")
                 
