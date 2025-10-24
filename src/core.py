@@ -350,19 +350,37 @@ class HGENotifierManager:
         """
         try:
             signals = list(self.signal_history)[-limit:]  # Get last N signals
-            return [
-                {
+            location = self.journal_parser.get_latest_location()
+            
+            result = []
+            for signal in signals:
+                signal_data = {
                     "system_name": signal.system_name,
                     "timestamp": signal.timestamp.isoformat(),
                     "age": signal.age_human_readable(),
+                    "distance": 0,
                     "coordinates": {
                         "x": signal.x,
                         "y": signal.y,
                         "z": signal.z,
                     } if signal.x is not None else None,
                 }
-                for signal in signals
-            ]
+                
+                # Calculate distance if both locations have coordinates
+                if location and signal.x is not None and location.x is not None:
+                    try:
+                        distance = self.distance_calculator.calculate_distance(
+                            location.x, location.y, location.z,
+                            signal.x, signal.y, signal.z
+                        )
+                        if distance is not None:
+                            signal_data["distance"] = round(distance, 2)
+                    except Exception as e:
+                        self.logger.debug(f"Error calculating distance: {e}")
+                
+                result.append(signal_data)
+            
+            return result
         except Exception as e:
             self.logger.debug(f"Error getting signal history: {e}")
             return []
