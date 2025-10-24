@@ -62,6 +62,33 @@ def create_app(manager: HGENotifierManager, ws_manager: WebSocketManager | None 
         """Get current status as JSON."""
         return jsonify(manager.get_status())
 
+    @app.route("/api/hge/materials")
+    def api_materials() -> Union[Response, Tuple[Response, int]]:
+        """Get materials for the current HGE signal."""
+        try:
+            status = manager.get_status()
+            signal_data = status.get("hge_signal")
+            if not signal_data:
+                return jsonify({"status": "success", "data": None})
+            
+            if isinstance(signal_data, dict):
+                return jsonify({
+                    "status": "success",
+                    "data": {
+                        "system_name": signal_data.get("system_name"),
+                        "allegiance": signal_data.get("allegiance"),
+                        "government": signal_data.get("government"),
+                        "population": signal_data.get("population"),
+                        "state": signal_data.get("state"),
+                        "materials": signal_data.get("materials", {"count": 0, "materials": []}),
+                    }
+                })
+            
+            return jsonify({"status": "success", "data": None})
+        except Exception as e:
+            logger.error(f"Error getting materials: {e}")
+            return jsonify({"status": "error", "message": str(e)}), 500
+
     @app.route("/api/refresh", methods=["POST"])
     def api_refresh() -> Union[Response, Tuple[Response, int]]:
         """Trigger a manual refresh."""
@@ -359,6 +386,31 @@ HTML_TEMPLATE = """
             color: #008800;
         }
         
+        /* Materials styling */
+        .materials-section {
+            margin-top: 15px;
+            padding-top: 15px;
+            border-top: 1px solid #00cc00;
+        }
+        
+        .materials-list {
+            list-style: none;
+            padding-left: 0;
+            margin: 10px 0;
+        }
+        
+        .materials-list li {
+            padding: 5px 0;
+            color: #00ff00;
+            font-size: 0.95em;
+        }
+        
+        .materials-list .rarity {
+            color: #ffff00;
+            font-size: 0.85em;
+            font-style: italic;
+        }
+        
         /* ===================================================
            MOBILE RESPONSIVE ENHANCEMENTS
            =================================================== */
@@ -652,6 +704,28 @@ HTML_TEMPLATE = """
                 grid.insertBefore(signalCard, grid.firstChild);
             }
             
+            // Build materials HTML
+            let materialsHtml = '';
+            if (signal.materials && signal.materials.count > 0) {
+                materialsHtml = `
+                    <div class="materials-section">
+                        <p><span class="label">💎 Likely Materials:</span></p>
+                        <ul class="materials-list">
+                            ${signal.materials.materials.map(m => 
+                                `<li>${m.name} <span class="rarity">(${m.rarity})</span></li>`
+                            ).join('')}
+                        </ul>
+                    </div>
+                `;
+            } else if (signal.allegiance || signal.state) {
+                materialsHtml = `
+                    <div class="materials-section">
+                        <p><span class="label">System Info:</span></p>
+                        <p>${signal.allegiance || 'N/A'} - ${signal.state || 'Unknown state'}</p>
+                    </div>
+                `;
+            }
+            
             signalCard.innerHTML = `
                 <h2>🔴 HGE Signal</h2>
                 <p><span class="label">System:</span> <span class="value">${signal.system_name}</span></p>
@@ -662,6 +736,7 @@ HTML_TEMPLATE = """
                     Y: ${signal.coordinates.y?.toFixed(2) ?? 'N/A'}<br>
                     Z: ${signal.coordinates.z?.toFixed(2) ?? 'N/A'}
                 </div>
+                ${materialsHtml}
             `;
         }
         
@@ -1740,6 +1815,15 @@ TIMELINE_TEMPLATE = """
             font-size: 0.95em;
         }
         
+        .entry-materials {
+            color: #ffff00;
+            font-size: 0.85em;
+            margin-top: 8px;
+            padding-top: 8px;
+            border-top: 1px solid #00cc00;
+            font-style: italic;
+        }
+        
         .empty-message {
             text-align: center;
             padding: 40px 20px;
@@ -2113,13 +2197,24 @@ TIMELINE_TEMPLATE = """
                     return;
                 }
                 
-                container.innerHTML = data.data.map(entry => `
-                    <div class="timeline-entry">
-                        <div class="time">⏰ ${new Date(entry.timestamp).toLocaleString()}</div>
-                        <div class="system">🎯 ${entry.system_name}</div>
-                        <div class="distance">📏 ${entry.distance_ly ? entry.distance_ly.toFixed(2) + ' ly' : 'Unknown'}</div>
-                    </div>
-                `).join('');
+                container.innerHTML = data.data.map(entry => {
+                    // Build materials HTML
+                    let materialsHtml = '';
+                    if (entry.materials && entry.materials.count > 0) {
+                        materialsHtml = `<div class="entry-materials">
+                            💎 Materials: ${entry.materials.materials.map(m => m.name).join(', ')}
+                        </div>`;
+                    }
+                    
+                    return `
+                        <div class="timeline-entry">
+                            <div class="time">⏰ ${new Date(entry.timestamp).toLocaleString()}</div>
+                            <div class="system">🎯 ${entry.system_name}</div>
+                            <div class="distance">📏 ${entry.distance_ly ? entry.distance_ly.toFixed(2) + ' ly' : 'Unknown'}</div>
+                            ${materialsHtml}
+                        </div>
+                    `;
+                }).join('');
             } catch (error) {
                 console.error('Error loading timeline list:', error);
             }

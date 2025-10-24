@@ -14,6 +14,7 @@ from src.distance import DistanceCalculator
 from src.distance.coordinates import CoordinateDatabase
 from src.eddn import EDDNMonitor, HGESignal
 from src.journal import CommanderLocation, JournalParser
+from src.materials import MaterialInference
 from src.notifications.manager import NotificationManager
 from src.notifications.models import Alert
 
@@ -254,6 +255,18 @@ class HGENotifierManager:
         if signal is None:
             return None
 
+        # Infer materials from system context
+        materials_data = {"count": 0, "materials": []}
+        try:
+            materials = MaterialInference.infer_materials(
+                allegiance=signal.allegiance,
+                state=signal.state,
+                population=signal.population,
+            )
+            materials_data = MaterialInference.format_materials(materials)
+        except Exception as e:
+            logging.getLogger(__name__).debug(f"Error inferring materials: {e}")
+
         return {
             "system_name": signal.system_name,
             "timestamp": signal.timestamp.isoformat(),
@@ -263,6 +276,11 @@ class HGENotifierManager:
                 "y": signal.y,
                 "z": signal.z,
             },
+            "allegiance": signal.allegiance,
+            "government": signal.government,
+            "population": signal.population,
+            "state": signal.state,
+            "materials": materials_data,
         }
 
     @staticmethod
@@ -365,6 +383,10 @@ class HGENotifierManager:
                         "y": signal.y,
                         "z": signal.z,
                     } if signal.x is not None else None,
+                    "allegiance": signal.allegiance,
+                    "government": signal.government,
+                    "population": signal.population,
+                    "state": signal.state,
                 }
                 
                 # Calculate distance if both locations have coordinates
@@ -380,6 +402,18 @@ class HGENotifierManager:
                             signal_data["distance_ly"] = distance_rounded
                     except Exception as e:
                         self.logger.debug(f"Error calculating distance: {e}")
+                
+                # Infer likely materials from system state
+                try:
+                    materials = MaterialInference.infer_materials(
+                        allegiance=signal.allegiance,
+                        state=signal.state,
+                        population=signal.population,
+                    )
+                    signal_data["materials"] = MaterialInference.format_materials(materials)
+                except Exception as e:
+                    self.logger.debug(f"Error inferring materials: {e}")
+                    signal_data["materials"] = {"count": 0, "materials": []}
                 
                 result.append(signal_data)
             

@@ -31,6 +31,18 @@ class HGESignal:
     
     z: Optional[float] = None
     """Z coordinate of the system."""
+    
+    allegiance: Optional[str] = None
+    """System allegiance (Federation, Empire, Alliance, Independent)."""
+    
+    government: Optional[str] = None
+    """System government type."""
+    
+    population: Optional[int] = None
+    """System population."""
+    
+    state: Optional[str] = None
+    """Current system faction state (War, Civil Unrest, Outbreak, Boom, etc)."""
 
     def age_seconds(self) -> int:
         """Get age of signal in seconds."""
@@ -347,7 +359,7 @@ class EDDNMonitor:
             # Extract timestamp
             timestamp_str = message.get("timestamp")
             if not timestamp_str:
-                timestamp = datetime.utcnow()
+                timestamp = datetime.now(timezone.utc)
             else:
                 timestamp = datetime.fromisoformat(
                     timestamp_str.replace("Z", "+00:00")
@@ -359,17 +371,33 @@ class EDDNMonitor:
             y = star_pos[1] if star_pos and len(star_pos) > 1 else None
             z = star_pos[2] if star_pos and len(star_pos) > 2 else None
 
+            # Extract system context information for material inference
+            allegiance = message.get("SystemAllegiance")
+            government = message.get("SystemGovernment")
+            population = message.get("Population")
+            
+            # Extract faction state if available
+            state = None
+            factions = message.get("Factions", [])
+            if factions and len(factions) > 0:
+                # Get the state of the first faction (controlling faction)
+                state = factions[0].get("FactionState")
+
             signal = HGESignal(
                 system_name=system_name,
                 timestamp=timestamp,
                 x=x,
                 y=y,
                 z=z,
+                allegiance=allegiance,
+                government=government,
+                population=population,
+                state=state,
             )
             
             logger.debug(
                 f"Parsed HGE signal: {system_name} at {timestamp.isoformat()} "
-                f"coords: ({x}, {y}, {z})"
+                f"coords: ({x}, {y}, {z}) allegiance: {allegiance} state: {state}"
             )
 
             return signal
