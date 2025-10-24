@@ -11,6 +11,7 @@ from typing import Optional, Callable
 from watchdog.events import FileSystemEventHandler, FileModifiedEvent, DirModifiedEvent, FileSystemEvent
 from watchdog.observers import Observer
 
+from src.system_info import SystemInfoLookup
 
 logger = logging.getLogger(__name__)
 
@@ -303,13 +304,24 @@ class JournalParser:
                 timestamp_str = entry.get("timestamp", "")
                 timestamp = self._parse_timestamp(timestamp_str)
                 
-                # Create HGE signal from current location
+                # Look up system info for material inference
+                system_info = SystemInfoLookup.get_system_info(self.latest_location.system_name)
+                allegiance = system_info.get("allegiance") if system_info else None
+                government = system_info.get("government") if system_info else None
+                population = system_info.get("population") if system_info else None
+                state = system_info.get("state") if system_info else None
+                
+                # Create HGE signal from current location with system info
                 signal = HGESignal(
                     system_name=self.latest_location.system_name,
                     timestamp=timestamp,
                     x=self.latest_location.x,
                     y=self.latest_location.y,
                     z=self.latest_location.z,
+                    allegiance=allegiance,
+                    government=government,
+                    population=population,
+                    state=state,
                 )
                 
                 logger.info(f"Calling HGE callback for: {self.latest_location.system_name}")

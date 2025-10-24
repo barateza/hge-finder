@@ -9,6 +9,7 @@ from dataclasses import dataclass
 from datetime import datetime, timezone
 from typing import Optional, Callable
 
+from src.system_info import SystemInfoLookup
 
 logger = logging.getLogger(__name__)
 
@@ -371,17 +372,26 @@ class EDDNMonitor:
             y = star_pos[1] if star_pos and len(star_pos) > 1 else None
             z = star_pos[2] if star_pos and len(star_pos) > 2 else None
 
-            # Extract system context information for material inference
+            # Try to get system context from EDDN first
             allegiance = message.get("SystemAllegiance")
             government = message.get("SystemGovernment")
             population = message.get("Population")
-            
-            # Extract faction state if available
             state = None
             factions = message.get("Factions", [])
             if factions and len(factions) > 0:
-                # Get the state of the first faction (controlling faction)
                 state = factions[0].get("FactionState")
+            
+            # If missing, look up from EDSM
+            if not allegiance or not state:
+                try:
+                    system_info = SystemInfoLookup.get_system_info(system_name)
+                    if system_info:
+                        allegiance = allegiance or system_info.get("allegiance")
+                        government = government or system_info.get("government")
+                        population = population or system_info.get("population")
+                        state = state or system_info.get("state")
+                except Exception as e:
+                    logger.debug(f"Error looking up system info for {system_name}: {e}")
 
             signal = HGESignal(
                 system_name=system_name,

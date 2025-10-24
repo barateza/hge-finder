@@ -76,6 +76,20 @@ class HGENotifierManager:
         """
         self.logger.info(f"New HGE signal in {signal.system_name}")
 
+        # Enrich signal with system info if missing
+        try:
+            from src.system_info import SystemInfoLookup
+            if not signal.allegiance or not signal.state:
+                system_info = SystemInfoLookup.get_system_info(signal.system_name)
+                if system_info:
+                    signal.allegiance = signal.allegiance or system_info.get("allegiance")
+                    signal.government = signal.government or system_info.get("government")
+                    signal.population = signal.population or system_info.get("population")
+                    signal.state = signal.state or system_info.get("state")
+                    self.logger.debug(f"Enriched signal with EDSM data: allegiance={signal.allegiance}, state={signal.state}")
+        except Exception as e:
+            self.logger.debug(f"Error enriching signal with system info: {e}")
+
         # Add to signal history
         self.signal_history.append(signal)
 
