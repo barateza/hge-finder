@@ -128,21 +128,11 @@ def create_app(manager: HGENotifierManager, ws_manager: WebSocketManager | None 
         """Get HGE signal detection timeline data."""
         try:
             limit = request.args.get("limit", 50, type=int)
-            history = manager.notification_manager.get_notification_history(count=limit)
-            
-            timeline_data = []
-            for notification in reversed(history):  # Oldest first
-                timeline_data.append({
-                    "timestamp": notification.timestamp.isoformat(),
-                    "system_name": notification.signal_system,
-                    "distance_ly": notification.distance_ly,
-                    "channel": notification.channel,
-                    "success": notification.success,
-                })
+            signal_history = manager.get_signal_history(limit=limit)
             
             return jsonify({
                 "status": "success",
-                "data": timeline_data,
+                "data": signal_history,
             })
         except Exception as e:
             logger.error(f"Error getting timeline: {e}")
@@ -152,34 +142,31 @@ def create_app(manager: HGENotifierManager, ws_manager: WebSocketManager | None 
     def api_timeline_summary() -> Union[Response, Tuple[Response, int]]:
         """Get timeline summary statistics."""
         try:
-            history = manager.notification_manager.get_notification_history(count=100)
+            signal_history = manager.get_signal_history(limit=100)
             
-            if not history:
+            if not signal_history:
                 return jsonify({
                     "status": "success",
                     "data": {
                         "total_signals": 0,
-                        "avg_distance": 0,
-                        "min_distance": 0,
-                        "max_distance": 0,
                         "hourly_distribution": {},
                     }
                 })
             
-            distances = [n.distance_ly for n in history if n.distance_ly is not None]
             hourly = {}
-            
-            for notification in history:
-                hour = notification.timestamp.strftime("%H:00")
-                hourly[hour] = hourly.get(hour, 0) + 1
+            for signal in signal_history:
+                try:
+                    from datetime import datetime
+                    ts = datetime.fromisoformat(signal["timestamp"])
+                    hour = ts.strftime("%H:00")
+                    hourly[hour] = hourly.get(hour, 0) + 1
+                except (KeyError, ValueError):
+                    continue
             
             return jsonify({
                 "status": "success",
                 "data": {
-                    "total_signals": len(history),
-                    "avg_distance": round(sum(distances) / len(distances), 2) if distances else 0,
-                    "min_distance": round(min(distances), 2) if distances else 0,
-                    "max_distance": round(max(distances), 2) if distances else 0,
+                    "total_signals": len(signal_history),
                     "hourly_distribution": hourly,
                 }
             })
@@ -191,14 +178,13 @@ def create_app(manager: HGENotifierManager, ws_manager: WebSocketManager | None 
     def api_timeline_trends() -> Union[Response, Tuple[Response, int]]:
         """Get distance trends data for charting."""
         try:
-            history = manager.notification_manager.get_notification_history(count=100)
+            signal_history = manager.get_signal_history(limit=100)
             
             trends = []
-            for notification in reversed(history):
+            for signal in signal_history:
                 trends.append({
-                    "timestamp": notification.timestamp.isoformat(),
-                    "distance": notification.distance_ly or 0,
-                    "system": notification.signal_system,
+                    "timestamp": signal["timestamp"],
+                    "system": signal["system_name"],
                 })
             
             return jsonify({

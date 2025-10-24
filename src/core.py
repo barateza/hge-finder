@@ -2,6 +2,7 @@
 
 import asyncio
 import logging
+from collections import deque
 from pathlib import Path
 from typing import TYPE_CHECKING, Callable, Optional
 
@@ -61,6 +62,9 @@ class HGENotifierManager:
             cooldown_seconds=self.settings.notification_cooldown_seconds,
         )
 
+        # Track signal history (keep last 100 signals)
+        self.signal_history: deque = deque(maxlen=100)
+        
         self._initialized = False
 
     def _on_new_hge_signal(self, signal: HGESignal) -> None:
@@ -70,6 +74,9 @@ class HGENotifierManager:
             signal: The new HGE signal detected.
         """
         self.logger.info(f"New HGE signal in {signal.system_name}")
+
+        # Add to signal history
+        self.signal_history.append(signal)
 
         # Emit WebSocket event if manager is available (non-blocking, silently fails if no event loop)
         if self.websocket_manager:
@@ -331,3 +338,31 @@ class HGENotifierManager:
         except Exception as e:
             self.logger.debug(f"Error getting notification stats: {e}")
             return {"total": 0, "successful": 0, "failed": 0}
+
+    def get_signal_history(self, limit: int = 50) -> list:
+        """Get the history of detected HGE signals.
+        
+        Args:
+            limit: Maximum number of signals to return.
+            
+        Returns:
+            List of formatted signal data, oldest first.
+        """
+        try:
+            signals = list(self.signal_history)[-limit:]  # Get last N signals
+            return [
+                {
+                    "system_name": signal.system_name,
+                    "timestamp": signal.timestamp.isoformat(),
+                    "age": signal.age_human_readable(),
+                    "coordinates": {
+                        "x": signal.x,
+                        "y": signal.y,
+                        "z": signal.z,
+                    } if signal.x is not None else None,
+                }
+                for signal in signals
+            ]
+        except Exception as e:
+            self.logger.debug(f"Error getting signal history: {e}")
+            return []
