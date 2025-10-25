@@ -350,17 +350,21 @@ class HGENotifierManager:
                 return []
             
             history = self.notification_manager.get_notification_history(count=10)
-            return [
-                {
+            
+            if not history:
+                return []
+            
+            result = []
+            for notification in history:  # type: ignore
+                result.append({
                     "system_name": notification.signal_system,
                     "distance_ly": notification.distance_ly,
                     "timestamp": notification.timestamp.isoformat(),
                     "channel": notification.channel,
                     "success": notification.success,
                     "error": notification.error,
-                }
-                for notification in history
-            ]
+                })
+            return result
         except Exception as e:
             self.logger.debug(f"Error getting notification history: {e}")
             return []

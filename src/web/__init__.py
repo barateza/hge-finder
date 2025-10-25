@@ -103,6 +103,13 @@ def create_app(manager: HGENotifierManager, ws_manager: WebSocketManager | None 
     def api_notifications() -> Union[Response, Tuple[Response, int]]:
         """Get notification history."""
         try:
+            # Notification system is archived
+            if manager.notification_manager is None:
+                return jsonify({
+                    "status": "success",
+                    "data": [],
+                })
+            
             count = request.args.get("count", 10, type=int)
             history = manager.notification_manager.get_notification_history(count=count)
             return jsonify({
@@ -116,7 +123,7 @@ def create_app(manager: HGENotifierManager, ws_manager: WebSocketManager | None 
                         "success": notification.success,
                         "error": notification.error,
                     }
-                    for notification in history
+                    for notification in history  # type: ignore
                 ],
             })
         except Exception as e:
@@ -127,6 +134,17 @@ def create_app(manager: HGENotifierManager, ws_manager: WebSocketManager | None 
     def api_notifications_stats() -> Union[Response, Tuple[Response, int]]:
         """Get notification statistics."""
         try:
+            # Notification system is archived
+            if manager.notification_manager is None:
+                return jsonify({
+                    "status": "success",
+                    "data": {
+                        "total": 0,
+                        "successful": 0,
+                        "failed": 0,
+                    },
+                })
+            
             stats = manager.notification_manager.get_stats()
             return jsonify({
                 "status": "success",
@@ -144,6 +162,10 @@ def create_app(manager: HGENotifierManager, ws_manager: WebSocketManager | None 
     def api_notifications_clear() -> Union[Response, Tuple[Response, int]]:
         """Clear notification history."""
         try:
+            # Notification system is archived
+            if manager.notification_manager is None:
+                return jsonify({"status": "success", "message": "Notification system is archived"})
+            
             manager.notification_manager.in_app.clear_history()
             return jsonify({"status": "success", "message": "Notification history cleared"})
         except Exception as e:
