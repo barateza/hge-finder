@@ -51,17 +51,19 @@ class HGENotifierManager:
         
         self.distance_calculator = DistanceCalculator()
         
-        # Initialize notification manager
-        alert_config = Alert(
-            max_distance_ly=self.settings.alert_max_distance,
-            max_age_hours=int(self.settings.alert_max_age),
-            enabled=self.settings.notifications_enabled,
-        )
-        self.notification_manager = NotificationManager(
-            discord_webhook=self.settings.discord_webhook_url,
-            alert_config=alert_config,
-            cooldown_seconds=self.settings.notification_cooldown_seconds,
-        )
+        # ARCHIVED: Notification manager (feature disabled for now)
+        # Will be re-enabled once reliability is improved
+        # alert_config = Alert(
+        #     max_distance_ly=self.settings.alert_max_distance,
+        #     max_age_hours=int(self.settings.alert_max_age),
+        #     enabled=self.settings.notifications_enabled,
+        # )
+        # self.notification_manager = NotificationManager(
+        #     discord_webhook=self.settings.discord_webhook_url,
+        #     alert_config=alert_config,
+        #     cooldown_seconds=self.settings.notification_cooldown_seconds,
+        # )
+        self.notification_manager = None  # Disabled for now
 
         # Track signal history (keep last 100 signals)
         self.signal_history: deque = deque(maxlen=100)
@@ -117,12 +119,13 @@ class HGENotifierManager:
                 enriched_location = self._enrich_location_coordinates(location)
                 
                 if enriched_signal and enriched_location:
-                    # Check and send notification
-                    notification = self.notification_manager.check_and_notify(enriched_signal, enriched_location)
-                    if notification:
-                        self.logger.info(f"Notification sent: {notification.signal_system} ({notification.distance_ly} ly)")
+                    # Notification system is archived for now
+                    # notification = self.notification_manager.check_and_notify(enriched_signal, enriched_location)
+                    # if notification:
+                    #     self.logger.info(f"Notification sent: {notification.signal_system} ({notification.distance_ly} ly)")
+                    pass
         except Exception as e:
-            self.logger.error(f"Error sending notification: {e}")
+            self.logger.error(f"Error in signal callback: {e}")
 
     def _on_location_change(self, location: CommanderLocation) -> None:
         """Callback when commander location changes.
@@ -342,6 +345,10 @@ class HGENotifierManager:
     def _format_notification_history(self) -> list:
         """Get formatted notification history."""
         try:
+            # Notification system is archived
+            if self.notification_manager is None:
+                return []
+            
             history = self.notification_manager.get_notification_history(count=10)
             return [
                 {
@@ -361,6 +368,10 @@ class HGENotifierManager:
     def _get_notification_stats(self) -> dict:
         """Get notification statistics."""
         try:
+            # Notification system is archived
+            if self.notification_manager is None:
+                return {"total": 0, "successful": 0, "failed": 0}
+            
             stats = self.notification_manager.get_stats()
             return {
                 "total": stats.get("total", 0),
