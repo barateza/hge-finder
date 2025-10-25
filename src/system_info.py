@@ -12,7 +12,7 @@ import time
 logger = logging.getLogger(__name__)
 
 # EDSM API endpoint
-EDSM_API_URL = "https://www.edsm.net/api/v1"
+EDSM_API_URL = "https://www.edsm.net/api-v1"
 
 # Cache to avoid repeated API calls for the same system
 # Maps system_name -> system_info dict
@@ -73,18 +73,20 @@ class SystemInfoLookup:
                 return None
             
             # Extract relevant info
+            information = data.get("information", {})
+            
             system_info = {
-                "allegiance": data.get("information", {}).get("allegiance"),
-                "government": data.get("information", {}).get("government"),
-                "population": data.get("information", {}).get("population"),
+                "allegiance": information.get("allegiance"),
+                "government": information.get("government"),
+                "population": information.get("population"),
                 "state": None,
             }
             
-            # Extract primary faction state
-            factions = data.get("factions", [])
-            if factions and len(factions) > 0:
-                # Get the state of the first (controlling) faction
-                system_info["state"] = factions[0].get("state")
+            # Extract faction state from information object
+            # Note: factionState can be "None" (string) for systems with no active state
+            faction_state = information.get("factionState")
+            if faction_state and faction_state.lower() != "none":
+                system_info["state"] = faction_state
             
             logger.debug(
                 f"Found system info for {system_name}: "

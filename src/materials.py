@@ -114,6 +114,23 @@ class MaterialInference:
         ),
     }
 
+    # Alliance/Independent default materials (Proto Light Alloys, Proto Radiolic Alloys)
+    # These are part of BOOM_EXPANSION_MATERIALS but also the default for Alliance/Independent
+    ALLIANCE_INDEPENDENT_MATERIALS = {
+        "Proto Light Alloys": MaterialInfo(
+            name="Proto Light Alloys",
+            category="Manufactured",
+            rarity="Very Rare",
+            source="Alliance or Independent systems"
+        ),
+        "Proto Radiolic Alloys": MaterialInfo(
+            name="Proto Radiolic Alloys",
+            category="Manufactured",
+            rarity="Very Rare",
+            source="Alliance or Independent systems"
+        ),
+    }
+
     @staticmethod
     def infer_materials(
         allegiance: Optional[str] = None,
@@ -140,27 +157,31 @@ class MaterialInference:
         allegiance_norm = (allegiance or "").lower() if allegiance else None
         state_norm = (state or "").lower() if state else None
 
-        # Rule 1: Federal systems
-        if allegiance_norm and "federal" in allegiance_norm:
+        # Rule 1: Federal systems (allegiance = "Federation")
+        if allegiance_norm == "federation":
             materials.update(MaterialInference.FEDERAL_MATERIALS.keys())
 
-        # Rule 2: Imperial systems
-        if allegiance_norm and "empire" in allegiance_norm:
+        # Rule 2: Imperial systems (allegiance = "Empire")
+        if allegiance_norm == "empire":
             materials.update(MaterialInference.IMPERIAL_MATERIALS.keys())
 
-        # Rule 3: Civil Unrest faction state
+        # Rule 3: Alliance or Independent systems (default materials)
+        if allegiance_norm in ("alliance", "independent"):
+            materials.update(MaterialInference.ALLIANCE_INDEPENDENT_MATERIALS.keys())
+
+        # Rule 4: Civil Unrest faction state
         if state_norm and "civil unrest" in state_norm:
             materials.update(MaterialInference.CIVIL_UNREST_MATERIALS.keys())
 
-        # Rule 4: War or Civil War faction states
+        # Rule 5: War or Civil War faction states
         if state_norm and ("war" in state_norm or "civil war" in state_norm):
             materials.update(MaterialInference.WAR_MATERIALS.keys())
 
-        # Rule 5: Outbreak state with population > 1,000,000
+        # Rule 6: Outbreak state with population > 1,000,000
         if state_norm and "outbreak" in state_norm and population and population > 1_000_000:
             materials.update(MaterialInference.OUTBREAK_MATERIALS.keys())
 
-        # Rule 6: Boom or Expansion faction states
+        # Rule 7: Boom or Expansion faction states
         if state_norm and ("boom" in state_norm or "expansion" in state_norm):
             materials.update(MaterialInference.BOOM_EXPANSION_MATERIALS.keys())
 
@@ -168,6 +189,7 @@ class MaterialInference:
         all_material_dicts = [
             MaterialInference.FEDERAL_MATERIALS,
             MaterialInference.IMPERIAL_MATERIALS,
+            MaterialInference.ALLIANCE_INDEPENDENT_MATERIALS,
             MaterialInference.CIVIL_UNREST_MATERIALS,
             MaterialInference.WAR_MATERIALS,
             MaterialInference.OUTBREAK_MATERIALS,
