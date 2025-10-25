@@ -1,0 +1,274 @@
+{{quote|Currently, much of human space is at peace; the cold war between the two great factions of the Federation, the oldest interstellar nation, and the Empire, born out of brutal secession from it, has thawed somewhat, but the potential for a crisis is still there.<br>
+The constant proxy and low intensity conflicts of the previous decades have now reduced in number and relations have stabilised. It’s not a total peace; here and there some conflicts smoulder. A new player has made their presence felt. In a short period of time the Alliance has expanded from a handful of worlds to a much larger coalition of systems, united politically for stability. This has forced the two older powers into realising they no longer dominate.<br>
+The independent systems still constitute the bulk of the human inhabited systems. They bring a rich tapestry of cultures and beliefs to the dark of space. From these worlds individuals and governments seek new opportunities deep in unexplored space.|Elite: Dangerous Handbook<ref>[http://hosting.zaonce.net/elite/website/assets/ELITE-DANGEROUS-GAME-MANUAL.pdf Elite: Dangerous Handbook]</ref>}}
+[[File:Elite Dangerous Factions Insignia.png|thumb|300px|Insignia of the Empire, Alliance, and Federation]]
+[[Human|Humanity]] in the 34th century is divided into thousands of unique '''factions''' with their own history, culture, and ethos. Factions generally fall into 1 of 2 main categories: Minor Factions (organisations that control dozens of star systems or a single station), and Superpowers (political unions of Minor Factions that share a similar, overarching culture and economic ties). The interplay of Minor Factions results in frequent territorial changes, but the overwhelming strength of the Superpowers provides a steadying influence.
+
+== Galactic Superpowers ==
+There are three extant [[:Category:Galactic Superpower|galactic superpowers]]<ref>[https://www.elitedangerous.com/en/story/galactic-superpowers Galactic Superpowers - Story - Elite Dangerous]</ref> in the [[human]]-inhabited [[Core Systems]] of the Milky Way [[galaxy]]:
+
+{| class="sortable wikitable" border="1"
+!class="unsortable" |Image
+!Name
+!class="unsortable" |Icon
+!class="unsortable" |Type 
+!Capital
+!Leader 
+!Population
+!Founded
+!Predecessor
+!class="unsortable" |Notes
+|-
+||[[File:Alliance Wallpaper Elite Dangerous.jpg|200px]]
+|[[Alliance]]
+|[[File:Alliance_vector.svg|40x40px|center]]
+|Political and economic union
+|[[Garden City]], [[Turner's World]], [[Alioth]]
+|[[Alliance Prime Minister|Prime Minister]]
+|~557 billion
+|3230
+|[[Independent|Independent systems]] 
+|Also called the Alliance of Independent Systems.
+|-
+||[[File:Empire Wallpaper Elite Dangerous.jpg|200px]]
+|[[Empire]]
+|[[File:Empire_vector.svg|40x40px|center]]
+|Hereditary monarchy
+|[[Capitol (city)|Capitol]], [[Capitol]], [[Achenar]]
+| [[Emperor]]
+|~1.652 trillion
+|2296
+|[[Republic of Achenar]]
+|Also called the Empire of Achenar.
+|-
+|[[File:Federation Wallpaper Elite Dangerous.jpg|200px]]
+|[[Federation]]
+|[[File:Federation_vector.svg|40x40px|center]]
+| Representative democracy
+|[[Olympus Village]], [[Mars]], [[Sol]]
+|[[President of the Federation|President]]
+| ~1.944 trillion
+| 2242
+|[[United States of the Americas]]
+|Also called the Federation of Star Systems.
+|}
+
+[[File:ED-Ships-Faction-Conflict.png|thumb|250px|Faction conflict]]The relationship between [[Federation]] and [[Empire]] has historically wavered between cool disdain, outright hostility, and armed conflict. The [[Alliance]] is the newest superpower which maintains cordial relations with the 2 rivals. Numerous Alliance systems were the victims of past Federal or Imperial exploitation and proxy conflicts.
+
+The majority of [[human]] territory consists of [[independent]] systems that are controlled by Minor Factions that decline to align with any of the Superpowers.<ref>[http://hosting.zaonce.net/elite/website/assets/ELITE-DANGEROUS-GAME-MANUAL.pdf Elite: Dangerous Handbook]</ref>
+
+== Notable factions ==
+Notable factions and former superpowers or considered to be close to attaining superpower status include:
+{| class="sortable wikitable" border="1"
+! colspan="9" |'''Notable Factions'''
+|-
+!Name
+! Type
+!Capital
+!Leader 
+!Population
+!Founded
+!Dissolved
+!Predecessor
+!Notes
+|-
+|[[Galactic Cooperative]]
+|Interstellar, isolationist trade organization
+|[[Lave/Lave Station|Lave Station]] and [[Lave/Planet Lave|Planet Lave]], [[Lave]]
+|[[Galactic Cooperative Chief Executive Officer|Chief Executive Officer]] 
+|Hundreds of billions
+|2696 
+|3174
+|[[Old Worlds|Old Worlds Coalition]]
+|It was the galaxy's third superpower before the Alliance laid claim to that title, and collapsed due to economic instability.
+|-
+|[[Pilots Federation]]
+|Association of independent pilots
+|[[Shinrarta Dezhra/Founders World|Founders World]], [[Shinrarta Dezhra]]
+|Chair of the Pilots Federation Safety Board
+|Unknown
+|2805
+|N/A
+|N/A
+|It oversees the vast majority of the actions taken by privately-owned vessels in human space, but which does not directly involve itself in political affairs. Instead the [[Pilot|pilots]] within this group hire themselves out as [[mercenary|mercenaries]] or operate as benefactors to other factions, for monetary gain or otherwise.
+|-
+|[[Sirius Corporation]]
+|[[Mega Corporation]] 
+|[[Sirius]]
+|CEO
+|Unknown
+|2339
+|N/A
+|N/A
+|The first and most powerful of the mega corporations, it began rapidly expanding its political influence in the early 34th century to the extent that it was sometimes referred to as "the fourth superpower".
+|}
+== Minor Factions==
+There are seven Minor Factions in any given star system. The Minor Faction with the greatest [[influence]] within a system will usually control that system's [[government]], and administer its key stations and other habitation centers.<ref>https://forums.frontier.co.uk/showthread.php?t=97577&page=11&p=1526033&viewfull=1#post1526033</ref> In the event that a system is controlled by an Anarchy Minor Faction, no conventional laws apply.
+
+Controlling and minor stations are also owned by [[:Category:Minor Factions|minor factions]], which also own the station markets.<ref>https://forums.frontier.co.uk/showthread.php?t=97577&page=12&p=1526613&viewfull=1#post1526613</ref> Trading in said markets may give a boost for the owning faction's influence, depending on their state.<ref>https://forums.frontier.co.uk/showthread.php?t=97577&page=13&p=1526913&viewfull=1#post1526913</ref>
+
+===Influence===
+All factions in System have a combined influence of 100%, meaning every citizen is associated to one. Influence is changed by player actions done in the system. Increasing one factions influence will take away influence from other factions proportionally to the amount they have. This recalculation is done at 13:00 GMT(Server time) every day.
+
+=== States===
+A faction can experience different states, also depending on what actions and influence players deal. It must always have the same state across all systems. For states like war which can only apply to one system all other systems will have no active state.
+{| class="sortable article-table"
+!State
+!Meaning
+!Reason
+!Countermeasure
+|-
+|None
+|no other state is available
+| other systems
+|anything
+|-
+|Boom
+|economy is booming
+|trade of commodities or exploration data
+|smuggle 
+|-
+|Bust
+|economy is low
+|smuggle
+|trade
+|-
+|Civil Unrest
+|citizens are rioting
+|crime and weapon trade/smuggle
+|bounty hunting 
+|-
+|Famine 
+|food shortage
+|
+| trade/smuggle food 
+|-
+|Lockdown 
+|system is locked for security
+|
+|bounty hunting
+|-
+|Outbreak
+|an epidemic is spread across citizens
+|
+|trade/smuggle medicine
+|-
+|War
+| two factions of different systems
+are fighting for control
+|influential rivalry between factions
+|
+|-
+|Civil War
+|two factions of the same system
+are fighting for control
+|influential rivalry between factions
+|
+|-
+|Election
+| two factions of same government type are peacefully solving their conflict
+|influential  rivalry between factions
+|
+|-
+|Retreat
+|faction is leaving the system 
+| Influence < 2.5%
+|
+|-
+|Expansion
+|faction is gathering resources to expand to another system 
+|Influence > 75%
+|
+|-
+|Blight
+|an agricultural blight is affecting crop yields
+|
+|sufficient shipments of Agronomic Treatment
+|-
+|Drought
+| a lack of water supply is causing an economic downturn
+|
+|sufficient shipments of water and other emergency supplies
+|-
+|Infrastructure Failure
+|disrupts a faction's operations and reduces both security and economic standards
+|
+|sufficient shipments of food and machinery
+|-
+| Terrorism
+| terrorists can target prosperous factions, resulting in a significant security and influence cost
+|
+|legally selling weapons to authorities/bounty hunting/faction entering lockdown
+|-
+|Natural Disaster
+|puts extra strain on star system's infrastructure, increasing chance of drought or infrastructure failure for other factions
+|
+|
+|-
+|Public Holiday
+|increase faction's influence and standard of living for short duration, at small economic and security cost 
+|
+|
+|}
+
+===Reputation===
+{| class="article-table" style="text-align: center; float: right;" border="1"
+|- style="background-color: Green;"
+| +3||Allied
+|- style="background-color: Green;"
+| +2||Friendly
+|- style="background-color: Green;"
+| +1||Cordial
+|- style="background-color: DarkOrange;"
+|0||Neutral
+|- style="background-color: FireBrick;"
+| -1||Unfriendly
+|- style="background-color: FireBrick;"
+| -2||Hostile
+|}
+The player has a [[reputation]] with every faction which by default is Neutral. On the ship's scanner neutral factions are displayed in orange, friendly and allied in green, and unfriendly and hostile in red. To achieve the status of ally by means of exploration, the player must sell data worth 6,000,000 [[Credits|CR]] to the faction.<ref>https://www.edtutorials.com/unlocks/unlocking-felicity-farseer/</ref>
+{| class="article-table"
+! Reputation
+!Missions
+!Trade
+!Combat
+!Exploration
+|-
+!Increase
+|completing
+|profit
+|handing in
+bounty vouchers/combat bonds that were issued by this faction
+
+Fight for this factionin a Combat Zone and win
+|sell data
+|-
+!Decrease
+|failing
+|
+|crime, engage in combat against the faction via Conflict Zones
+|
+|}
+''Note: actions will always affect the Reputation of the faction that controls the station/system/ship.''
+{{clr}}
+
+==Powers==
+The '''[[Power]]s''' are 12 exceedingly influential individuals with enormous followings who [[Powerplay|vie for influence]] in the Core Systems. Neither Superpower nor Minor Faction, some Powers are major political figures within the Superpowers, while others control independent organisations more powerful than most Minor Factions. They generally ignore the petty squabbles of the Minor Factions and compete for the hearts and minds of populations directly through the application of financial incentives, propaganda, or military force.
+
+==See also==
+*[[:Category:Organizations|Organizations]]
+*[[Corporations]]
+*[https://elite-factions.wikia.com/wiki/Elite_Factions_Wiki Elite Factions Wiki]
+*[http://laveradio.com/podcasts/laveradio-ep38.mp3 Lave Radio : Episode 38] - a quick overview of the Factions
+*[[Lore]]
+*[https://novaforce.com/guides/bgs/ Elite BGS Guide]
+
+==References==
+<references />
+[[Category:Lore]]
+[[Category:Guides]]
+[[Category:Organizations]]
+[[Category:Governments]]
+
+[[ru:Категория:Фракции]]
+[[uk: Фракції]]
