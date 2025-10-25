@@ -709,7 +709,7 @@ HTML_TEMPLATE = """
             if (signal.materials && signal.materials.count > 0) {
                 materialsHtml = `
                     <div class="materials-section">
-                        <p><span class="label">💎 Likely Materials:</span></p>
+                        <p><span class="label">💎 Possible Materials:</span></p>
                         <ul class="materials-list">
                             ${signal.materials.materials.map(m => 
                                 `<li>${m.name} <span class="rarity">(${m.rarity})</span></li>`
@@ -2202,7 +2202,7 @@ TIMELINE_TEMPLATE = """
                     let materialsHtml = '';
                     if (entry.materials && entry.materials.count > 0) {
                         materialsHtml = `<div class="entry-materials">
-                            💎 Materials: ${entry.materials.materials.map(m => m.name).join(', ')}
+                            💎 Possible Materials: ${entry.materials.materials.map(m => m.name).join(', ')}
                         </div>`;
                     }
                     
