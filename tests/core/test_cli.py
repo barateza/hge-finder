@@ -382,124 +382,148 @@ class TestRunCli:
 class TestMainEntryPointPhase1:
     """Phase 1: Test CLI main entry point and error handling."""
 
-    @patch('src.__main__.HGENotifierManager')
-    @patch('src.__main__.run_server')
-    def test_main_keyboard_interrupt(self, mock_run_server, mock_manager_class):
-        """Test CLI graceful shutdown on keyboard interrupt."""
+    @patch('src.__main__.run_cli')
+    @patch('src.__main__.get_settings')
+    def test_main_cli_mode(self, mock_get_settings, mock_run_cli):
+        """Test main() in CLI mode (default, no --web flag)."""
         from src.__main__ import main
         
+        # Mock settings
+        mock_settings = MagicMock()
+        mock_settings.eddn_mock_mode = True
+        mock_get_settings.return_value = mock_settings
+        
+        # Mock run_cli to return success
+        mock_run_cli.return_value = 0
+        
         with patch('sys.argv', ['eddn-hge']):
-            # Mock the manager to raise KeyboardInterrupt
-            mock_manager = MagicMock()
-            mock_manager_class.return_value = mock_manager
-            mock_run_server.side_effect = KeyboardInterrupt()
-            
-            # Should return 0 on interrupt
             result = main()
+            
+            # Should call run_cli (not run_server)
+            assert mock_run_cli.called
             assert result == 0
 
-    @patch('src.__main__.HGENotifierManager')
     @patch('src.__main__.run_server')
-    def test_main_exception_handling(self, mock_run_server, mock_manager_class):
-        """Test CLI exception handling."""
+    @patch('src.__main__.get_settings')
+    def test_main_web_mode(self, mock_get_settings, mock_run_server):
+        """Test main() in web mode with --web flag."""
         from src.__main__ import main
         
-        with patch('sys.argv', ['eddn-hge']):
-            # Mock the manager to raise an exception
-            mock_manager = MagicMock()
-            mock_manager_class.return_value = mock_manager
-            mock_run_server.side_effect = Exception("Test error")
-            
-            # Should return 1 on error
-            result = main()
-            assert result == 1
-
-    @patch('src.__main__.HGENotifierManager')
-    @patch('src.__main__.run_cli')
-    def test_main_cli_mode(self, mock_run_cli, mock_manager_class):
-        """Test CLI mode (non-web)."""
-        from src.__main__ import main
+        # Mock settings
+        mock_settings = MagicMock()
+        mock_settings.eddn_mock_mode = True
+        mock_settings.web_debug = False
+        mock_get_settings.return_value = mock_settings
         
-        with patch('sys.argv', ['eddn-hge']):
-            mock_manager = MagicMock()
-            mock_manager_class.return_value = mock_manager
-            mock_run_cli.return_value = 0
-            
-            # Run without --web flag
-            result = main()
-            assert mock_run_cli.called
-
-    @patch('src.__main__.HGENotifierManager')
-    @patch('src.__main__.run_server')
-    def test_main_web_mode(self, mock_run_server, mock_manager_class):
-        """Test web mode."""
-        from src.__main__ import main
+        # Mock run_server to return None
+        mock_run_server.return_value = None
         
         with patch('sys.argv', ['eddn-hge', '--web']):
-            mock_manager = MagicMock()
-            mock_manager_class.return_value = mock_manager
-            mock_run_server.return_value = None
-            
-            # Run with --web flag
-            result = main()
-            assert mock_run_server.called
-
-    @patch('src.__main__.HGENotifierManager')
-    @patch('src.__main__.run_server')
-    def test_main_web_custom_port(self, mock_run_server, mock_manager_class):
-        """Test web mode with custom port."""
-        from src.__main__ import main
-        
-        with patch('sys.argv', ['eddn-hge', '--web', '--port', '8080']):
-            mock_manager = MagicMock()
-            mock_manager_class.return_value = mock_manager
-            
-            # Run with custom port
-            result = main()
-            
-            # Verify port argument was passed
-            call_kwargs = mock_run_server.call_args[1]
-            assert call_kwargs['port'] == 8080
-
-    @patch('src.__main__.HGENotifierManager')
-    @patch('src.__main__.run_cli')
-    def test_main_real_eddn_flag(self, mock_run_cli, mock_manager_class):
-        """Test --real-eddn flag."""
-        from src.__main__ import main
-        
-        with patch('sys.argv', ['eddn-hge', '--real-eddn']):
-            with patch('src.config.settings.get_settings') as mock_settings_factory:
-                mock_settings = MagicMock()
-                mock_settings_factory.return_value = mock_settings
-                
-                mock_manager = MagicMock()
-                mock_manager_class.return_value = mock_manager
-                mock_run_cli.return_value = 0
-                
-                # Run with --real-eddn flag
-                main()
-                
-                # Verify settings were updated
-                assert mock_settings.eddn_mock_mode is False
-
-    @patch('src.__main__.HGENotifierManager')
-    @patch('src.__main__.run_cli')
-    def test_main_once_flag(self, mock_run_cli, mock_manager_class):
-        """Test --once flag."""
-        from src.__main__ import main
-        
-        with patch('sys.argv', ['eddn-hge', '--once']):
-            with patch('src.config.settings.get_settings') as mock_settings_factory:
-                mock_settings = MagicMock()
-                mock_settings_factory.return_value = mock_settings
-                
-                mock_manager = MagicMock()
-                mock_manager_class.return_value = mock_manager
-                mock_run_cli.return_value = 0
-                
-                # Run with --once flag
+            with patch('src.__main__.HGENotifierManager'):
                 result = main()
                 
-                # Verify run_cli was called
-                assert mock_run_cli.called
+                # Should call run_server (not run_cli)
+                assert mock_run_server.called
+
+    @patch('src.__main__.run_cli')
+    @patch('src.__main__.get_settings')
+    def test_main_cli_keyboard_interrupt(self, mock_get_settings, mock_run_cli):
+        """Test main() handles KeyboardInterrupt gracefully in CLI mode."""
+        from src.__main__ import main
+        
+        # Mock settings
+        mock_settings = MagicMock()
+        mock_settings.eddn_mock_mode = True
+        mock_get_settings.return_value = mock_settings
+        
+        # Mock run_cli to raise KeyboardInterrupt
+        mock_run_cli.side_effect = KeyboardInterrupt()
+        
+        with patch('sys.argv', ['eddn-hge']):
+            result = main()
+            
+            # Should catch KeyboardInterrupt and return 0
+            assert result == 0
+
+    @patch('src.__main__.run_cli')
+    @patch('src.__main__.get_settings')
+    def test_main_cli_exception_handling(self, mock_get_settings, mock_run_cli):
+        """Test main() handles exceptions gracefully in CLI mode."""
+        from src.__main__ import main
+        
+        # Mock settings
+        mock_settings = MagicMock()
+        mock_settings.eddn_mock_mode = True
+        mock_get_settings.return_value = mock_settings
+        
+        # Mock run_cli to raise an exception
+        mock_run_cli.side_effect = Exception("Test error")
+        
+        with patch('sys.argv', ['eddn-hge']):
+            result = main()
+            
+            # Should catch exception and return 1
+            assert result == 1
+
+    @patch('src.__main__.run_cli')
+    @patch('src.__main__.get_settings')
+    def test_main_real_eddn_flag(self, mock_get_settings, mock_run_cli):
+        """Test main() respects --real-eddn flag."""
+        from src.__main__ import main
+        
+        # Mock settings
+        mock_settings = MagicMock()
+        mock_settings.eddn_mock_mode = True  # default
+        mock_get_settings.return_value = mock_settings
+        
+        mock_run_cli.return_value = 0
+        
+        with patch('sys.argv', ['eddn-hge', '--real-eddn']):
+            result = main()
+            
+            # Verify eddn_mock_mode was set to False
+            assert mock_settings.eddn_mock_mode is False
+            assert mock_run_cli.called
+
+    @patch('src.__main__.run_cli')
+    @patch('src.__main__.get_settings')
+    def test_main_once_flag(self, mock_get_settings, mock_run_cli):
+        """Test main() passes --once flag to run_cli."""
+        from src.__main__ import main
+        
+        # Mock settings
+        mock_settings = MagicMock()
+        mock_settings.eddn_mock_mode = True
+        mock_get_settings.return_value = mock_settings
+        
+        mock_run_cli.return_value = 0
+        
+        with patch('sys.argv', ['eddn-hge', '--once']):
+            result = main()
+            
+            # Verify run_cli was called with namespace containing once=True
+            assert mock_run_cli.called
+            call_args = mock_run_cli.call_args[0][0]
+            assert call_args.once is True
+
+    @patch('src.__main__.run_server')
+    @patch('src.__main__.get_settings')
+    def test_main_web_custom_port(self, mock_get_settings, mock_run_server):
+        """Test main() respects custom port in web mode."""
+        from src.__main__ import main
+        
+        # Mock settings
+        mock_settings = MagicMock()
+        mock_settings.eddn_mock_mode = True
+        mock_settings.web_debug = False
+        mock_get_settings.return_value = mock_settings
+        
+        with patch('sys.argv', ['eddn-hge', '--web', '--port', '8080']):
+            with patch('src.__main__.HGENotifierManager'):
+                result = main()
+                
+                # Verify run_server was called with port 8080
+                assert mock_run_server.called
+                call_kwargs = mock_run_server.call_args[1]
+                assert call_kwargs['port'] == 8080
 
