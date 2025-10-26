@@ -1,5 +1,10 @@
 # HGE Notifier
 
+[![Coverage Status](https://img.shields.io/badge/coverage-76%25-green?logo=python&logoColor=white)](https://github.com/barateza/eddn-hge)
+[![Tests](https://img.shields.io/badge/tests-441%2F441%20passing-success?logo=pytest)](https://github.com/barateza/eddn-hge)
+[![Python Version](https://img.shields.io/badge/python-3.9%2B-blue?logo=python&logoColor=white)](https://www.python.org/)
+[![License](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
+
 Monitor Elite Dangerous EDDN for High Grade Emission (HGE) signals and see how far they are from your current Commander location.
 
 This repository provides a small Python tool with a CLI and optional web dashboard that:
