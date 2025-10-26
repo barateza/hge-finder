@@ -39,6 +39,7 @@ class TestEDDNMonitorInitializationPhase2:
         monitor.start()
 
         signal = monitor.get_latest_signal()
+        assert signal is not None
         assert signal.timestamp is not None
         assert isinstance(signal.timestamp, datetime)
         # Should be recent (within last hour)
@@ -54,6 +55,7 @@ class TestEDDNMonitorInitializationPhase2:
         monitor.start()
 
         signal = monitor.get_latest_signal()
+        assert signal is not None
         # Check all coordinates are present and numeric
         assert isinstance(signal.x, (int, float))
         assert isinstance(signal.y, (int, float))
