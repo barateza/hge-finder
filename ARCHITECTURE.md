@@ -482,9 +482,9 @@ graph TB
     Queue -->|after delay| Check3
     
     Send --> Update["Update Last Alert Time"]
-    Update --> Store["Store in History"]
-    Log --> Store
-    Store --> [*]
+    Update --> StoreHist["Store in History"]
+    Log --> StoreHist
+    StoreHist --> End["Complete"]
 ```
 
 ### Discord Webhook Integration
