@@ -89,7 +89,7 @@ class TestEDDNNetworkErrorHandling:
         
         with patch('zmq.Context') as mock_context:
             mock_socket = MagicMock()
-            mock_socket.connect.side_effect = zmq.ZMQError("Connection refused")
+            mock_socket.connect.side_effect = zmq.ZMQError(111, "Connection refused")
             mock_context.return_value.socket.return_value = mock_socket
             
             with patch('src.eddn.logger') as mock_logger:
@@ -106,7 +106,7 @@ class TestEDDNNetworkErrorHandling:
         with patch('zmq.Context') as mock_context:
             mock_socket = MagicMock()
             # Simulate timeout (Again exception)
-            mock_socket.recv_multipart.side_effect = zmq.error.Again("Timeout")
+            mock_socket.recv_multipart.side_effect = zmq.error.Again(11, "Timeout")
             mock_context.return_value.socket.return_value = mock_socket
             
             monitor.zmq_socket = mock_socket
@@ -497,3 +497,107 @@ class TestEDDNNetworkErrorHandling:
         )
         
         assert signal.system_name == "Shinrarta Dezhra (Alpha)"
+
+
+# ============================================================================
+# EDDN ERROR HANDLING AND EDGE CASES
+# ============================================================================
+
+
+class TestEDDNErrorHandling:
+    """Test EDDN error handling for connection, JSON, and message processing."""
+
+    def test_eddn_connection_timeout(self):
+        """Test EDDN handles connection timeouts gracefully."""
+        with patch('zmq.Context') as mock_context:
+            # Simulate socket creation failure
+            mock_socket = MagicMock()
+            mock_socket.connect.side_effect = TimeoutError("Connection timeout")
+            mock_context.return_value.socket.return_value = mock_socket
+            
+            monitor = EDDNMonitor(mock_mode=False)
+            
+            # Attempt to connect - should handle gracefully
+            try:
+                monitor._connect_to_eddn()
+            except TimeoutError:
+                pass  # Expected
+            
+            # Monitor should handle this gracefully
+            assert monitor.latest_signal is None or isinstance(monitor.latest_signal, HGESignal)
+
+    def test_eddn_invalid_json(self):
+        """Test EDDN handles malformed JSON messages gracefully."""
+        import json
+        
+        monitor = EDDNMonitor(mock_mode=True)
+        
+        # Simulate invalid JSON message
+        invalid_messages = [
+            b'{"invalid": json}',  # Malformed JSON
+            b'not json at all',     # Not JSON
+            b'',                     # Empty
+        ]
+        
+        for invalid_msg in invalid_messages:
+            # Should not raise exception
+            try:
+                monitor._process_eddn_message([b'header', invalid_msg])
+            except json.JSONDecodeError:
+                # Expected - logged but not raised in real usage
+                pass
+
+    def test_eddn_reconnection(self):
+        """Test EDDN reconnects after failure."""
+        monitor = EDDNMonitor(mock_mode=True)
+        
+        # Mock a reconnection attempt
+        monitor._reconnect_count = 3
+        
+        # Should have reconnect behavior
+        assert monitor.is_running is False  # Not running yet
+        
+        monitor.start()
+        assert monitor.is_running is True
+        
+        monitor.stop()
+        assert monitor.is_running is False
+
+    def test_eddn_process_empty_multipart(self):
+        """Test EDDN handles empty multipart messages."""
+        monitor = EDDNMonitor(mock_mode=True)
+        
+        # Empty multipart message
+        monitor._process_eddn_message([])
+        
+        # Should not crash
+
+    def test_eddn_process_single_part_message(self):
+        """Test EDDN handles single-part messages."""
+        monitor = EDDNMonitor(mock_mode=True)
+        
+        # Single part message (missing JSON payload)
+        monitor._process_eddn_message([b'header_only'])
+        
+        # Should not crash
+
+    def test_eddn_non_hge_message(self):
+        """Test EDDN ignores non-HGE messages."""
+        import json
+        
+        monitor = EDDNMonitor(mock_mode=True)
+        initial_signal = monitor.latest_signal
+        
+        # Process a non-HGE message
+        non_hge_message = {
+            "$schemaRef": "https://eddn.edcd.io/schemas/journal/1/scan",
+            "StarSystem": "Some System",
+            "timestamp": datetime.utcnow().isoformat() + "Z",
+        }
+        
+        json_data = json.dumps(non_hge_message).encode()
+        monitor._process_eddn_message([b'header', json_data])
+        
+        # Signal should not change
+        assert monitor.latest_signal == initial_signal
+

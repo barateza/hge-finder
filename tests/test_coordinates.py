@@ -5,6 +5,7 @@ import sqlite3
 import tempfile
 import shutil
 from pathlib import Path
+from unittest.mock import patch, MagicMock
 
 from src.distance.coordinates import CoordinateDatabase
 
@@ -298,11 +299,76 @@ class TestCoordinateDatabaseEdgeCases:
             db._store_in_cache("Precise", coords)
             retrieved = db._get_from_cache("Precise")
             
+            
             # SQLite should preserve precision
             assert retrieved is not None
             # Check within reasonable precision (float rounding)
             for stored, retrieved_val in zip(coords, retrieved):
                 assert abs(stored - retrieved_val) < 0.0000001
+        finally:
+            shutil.rmtree(tmpdir, ignore_errors=True)
+
+
+# ============================================================================
+# COORDINATE DATABASE ERROR HANDLING
+# ============================================================================
+
+
+class TestCoordinatesErrorHandling:
+    """Test Coordinates database error handling for API timeouts and failures."""
+
+    def test_coordinates_api_timeout(self):
+        """Test coordinate lookup handles API timeout gracefully."""
+        import requests
+        
+        with patch('requests.get') as mock_get:
+            # Simulate API timeout
+            mock_get.side_effect = requests.Timeout("API request timeout")
+            
+            db = CoordinateDatabase()
+            
+            # Should handle timeout gracefully
+            result = db.get_coordinates('UnknownSystem')
+            
+            # Should return None instead of raising
+            assert result is None
+
+    def test_coordinates_invalid_response(self):
+        """Test coordinate lookup handles invalid API response."""
+        with patch('requests.get') as mock_get:
+            # Simulate invalid API response
+            mock_response = MagicMock()
+            mock_response.status_code = 200
+            mock_response.json.return_value = {'error': 'not found'}
+            mock_get.return_value = mock_response
+            
+            db = CoordinateDatabase()
+            
+            # Should handle invalid response gracefully
+            result = db.get_coordinates('BadSystem')
+            
+            # Should return None
+            assert result is None
+
+    def test_coordinates_missing_system(self):
+        """Test coordinate lookup for non-existent system."""
+        tmpdir = tempfile.mkdtemp()
+        try:
+            with patch('requests.get') as mock_get:
+                # Simulate EDSM returning dict with no id (system not found)
+                mock_response = MagicMock()
+                mock_response.status_code = 200
+                mock_response.json.return_value = {}  # EDSM returns empty dict when not found
+                mock_response.raise_for_status = MagicMock()
+                mock_get.return_value = mock_response
+                
+                db = CoordinateDatabase(db_path=Path(tmpdir))
+                
+                # Request coordinates for system that doesn't exist
+                result = db.get_coordinates('SystemDoesNotExist_12345', use_cache=False)
+                
+                # Should handle missing data gracefully
+                assert result is None
         finally:
             shutil.rmtree(tmpdir, ignore_errors=True)
 

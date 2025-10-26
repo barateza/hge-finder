@@ -394,3 +394,41 @@ class TestCoreOrchestrationEdgeCases:
             
             manager.stop()
             assert manager._initialized is False
+
+
+# ============================================================================
+# CORE MANAGER ERROR HANDLING AND EDGE CASES
+# ============================================================================
+
+
+class TestCoreManagerErrorHandling:
+    """Test Core manager error handling and edge cases."""
+
+    def test_manager_no_signal(self) -> None:
+        """Test manager handles missing HGE signal."""
+        manager = HGENotifierManager()
+        manager.start()
+        
+        # Mock EDDN monitor to return no signal
+        with patch.object(manager.eddn_monitor, 'get_latest_signal', return_value=None):
+            # Get status should not crash
+            status = manager.get_status()
+            
+            assert status is not None
+        
+        manager.stop()
+
+    def test_manager_no_location(self) -> None:
+        """Test manager handles missing commander location."""
+        manager = HGENotifierManager()
+        manager.start()
+        
+        # Mock journal parser to return no location
+        with patch.object(manager.journal_parser, 'get_latest_location', return_value=None):
+            # Get status should not crash
+            status = manager.get_status()
+            
+            assert status is not None
+        
+        manager.stop()
+
