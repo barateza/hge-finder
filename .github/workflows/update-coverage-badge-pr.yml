@@ -38,8 +38,7 @@ jobs:
           pip install -e .[dev]
 
       - name: Run tests and generate coverage JSON
-        run: |
-          run: pytest --cov-report=json:coverage.json
+        run: pytest --cov-report=json:coverage.json
 
       - name: Generate shields endpoint JSON from coverage.json
         run: |
