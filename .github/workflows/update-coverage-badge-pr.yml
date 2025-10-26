@@ -1,0 +1,70 @@
+name: Update coverage badge (create PR)
+
+on:
+  push:
+    branches:
+      - main
+    # ignore pushes to branches created for badge updates so creating the PR doesn't retrigger this workflow
+    branches-ignore:
+      - 'coverage-badge/*'
+  pull_request:
+  schedule:
+    - cron: '0 6 * * 1'  # weekly; change as desired
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  update-coverage:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+
+      - name: Install test deps
+        run: |
+          python -m pip install --upgrade pip
+          pip install coverage pytest pytest-cov
+
+      - name: Run tests and generate coverage JSON
+        run: |
+          # Replace with your project's test command as needed
+          coverage run -m pytest
+          coverage json -o coverage.json
+
+      - name: Generate shields endpoint JSON from coverage.json
+        run: |
+          python .github/scripts/compute_coverage_badge.py coverage.json .github/coverage/coverage-badge.json
+
+      - name: (optional) Update README badge placeholder
+        if: env.UPDATE_README == 'true'
+        env:
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          BADGE_BRANCH: main
+        run: |
+          python .github/scripts/update_readme_badge.py .github/coverage/coverage-badge.json README.md
+
+      - name: Create pull request with updated badge
+        uses: peter-evans/create-pull-request@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          commit-message: "ci: update coverage badge"
+          branch: coverage-badge/${{ github.run_id }}
+          title: "ci: update coverage badge"
+          body: |
+            This automated PR updates the repository's coverage badge (shields endpoint JSON or README).
+            The change is generated from the latest test run in CI.
+          labels: automated, coverage-badge
+          base: main
+          # limit files included in PR to the badge JSON and README only (if README was updated)
+          paths: |
+            .github/coverage/coverage-badge.json
+            README.md
