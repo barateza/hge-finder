@@ -4,9 +4,6 @@ on:
   push:
     branches:
       - main
-    # ignore pushes to branches created for badge updates so creating the PR doesn't retrigger this workflow
-    branches-ignore:
-      - 'coverage-badge/*'
   pull_request:
   schedule:
     - cron: '0 6 * * 1'  # weekly; change as desired
@@ -18,6 +15,12 @@ permissions:
 jobs:
   update-coverage:
     runs-on: ubuntu-latest
+    env:
+      # Set to 'true' to also update README.md between markers (optional)
+      UPDATE_README: 'false'
+      # Branch where the raw JSON will be served from (change if your default branch isn't 'main')
+      BADGE_BRANCH: main
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -46,9 +49,6 @@ jobs:
 
       - name: (optional) Update README badge placeholder
         if: env.UPDATE_README == 'true'
-        env:
-          GITHUB_REPOSITORY: ${{ github.repository }}
-          BADGE_BRANCH: main
         run: |
           python .github/scripts/update_readme_badge.py .github/coverage/coverage-badge.json README.md
 
@@ -64,7 +64,3 @@ jobs:
             The change is generated from the latest test run in CI.
           labels: automated, coverage-badge
           base: main
-          # limit files included in PR to the badge JSON and README only (if README was updated)
-          paths: |
-            .github/coverage/coverage-badge.json
-            README.md
