@@ -293,51 +293,82 @@ class EDDNMonitor:
         """
         Check if message contains a HighGradeEmission signal.
 
-        EDDN FSSSignalDiscovered format:
-        {
-            "$schemaRef": "https://eddn.edcd.io/schemas/fsssignaldiscovered/1",
-            "header": {...},
-            "message": {
-                "StarSystem": "...",
-                "StarPos": [...],
-                "signals": [
-                    {
-                        "USSType": "$USS_Type_VeryValuableSalvage;",
-                        ...
-                    },
-                    ...
-                ],
-                ...
-            }
-        }
+        Supports multiple EDDN message formats:
+
+        1. EDDN FSS Signal Discovered:
+           {
+               "$schemaRef": "https://eddn.edcd.io/schemas/fsssignaldiscovered/1",
+               "message": {
+                   "signals": [
+                       {"USSType": "$USS_Type_VeryValuableSalvage;", ...},
+                       ...
+                   ],
+                   ...
+               }
+           }
+
+        2. EDDN USS schema (direct USS format):
+           {
+               "$schemaRef": "https://eddn.edcd.io/schemas/uss/1",
+               "USSType": "High Grade Emissions",
+               ...
+           }
+
+        3. EDDN Codex schema:
+           {
+               "$schemaRef": "https://eddn.edcd.io/schemas/codex/1",
+               "Name": "High Grade Emission",
+               "Description": "High Grade Emission Signal",
+               ...
+           }
+
+        4. EDDN Journal USS format:
+           {
+               "$schemaRef": "https://eddn.edcd.io/schemas/journal/1/uss",
+               "Event": "USSDrop",
+               "USSType": "High grade emissions",
+               ...
+           }
 
         Args:
             data: Parsed EDDN message
 
         Returns:
-            True if message contains HGE signal (USS_Type_VeryValuableSalvage)
+            True if message contains HGE signal
         """
         try:
             schema_ref = data.get("$schemaRef", "").lower()
             
-            # Only process FSS signal discovered events
-            if "fsssignaldiscovered" not in schema_ref:
-                return False
+            # Format 1: FSS Signal Discovered
+            if "fsssignaldiscovered" in schema_ref:
+                message = data.get("message", {})
+                if not isinstance(message, dict):
+                    return False
+                
+                signals = message.get("signals", [])
+                if not isinstance(signals, list):
+                    return False
+                
+                for signal in signals:
+                    uss_type = signal.get("USSType", "").lower()
+                    if "veryvaluablesalvage" in uss_type:
+                        logger.debug(f"HGE detected (FSS): {uss_type}")
+                        return True
             
-            message = data.get("message", {})
-            if not isinstance(message, dict):
-                return False
+            # Format 2: Direct USS format or Journal USS format
+            elif "uss" in schema_ref or "/uss" in schema_ref:
+                uss_type = data.get("USSType", "").lower()
+                if "high grade" in uss_type or "veryvaluablesalvage" in uss_type:
+                    logger.debug(f"HGE detected (USS): {uss_type}")
+                    return True
             
-            # Check for HGE in signals array
-            signals = message.get("signals", [])
-            if not isinstance(signals, list):
-                return False
-            
-            for signal in signals:
-                uss_type = signal.get("USSType", "")
-                # HGE is $USS_Type_VeryValuableSalvage;
-                if "USS_Type_VeryValuableSalvage" in uss_type:
-                    logger.debug(f"HGE detected: {uss_type}")
+            # Format 3: Codex format
+            elif "codex" in schema_ref:
+                name = data.get("Name", "").lower()
+                description = data.get("Description", "").lower()
+                
+                if "high grade emission" in name or "high grade emission" in description:
+                    logger.debug(f"HGE detected (Codex): {name or description}")
                     return True
             
             return False
@@ -350,41 +381,67 @@ class EDDNMonitor:
         """
         Parse HGE signal from EDDN message.
 
+        Handles various message formats and gracefully falls back to None/defaults
+        for missing optional fields.
+
         Args:
             data: Parsed EDDN message (must have passed _is_hge_message check)
 
         Returns:
-            HGESignal object or None if parsing fails
+            HGESignal object or None if parsing fails (missing required system name)
         """
         try:
+            # Try to find system name - check multiple formats
             message = data.get("message", {})
+            system_name = data.get("StarSystem") or message.get("StarSystem")
             
-            # Extract system name
-            system_name = message.get("StarSystem")
             if not system_name:
                 return None
 
-            # Extract timestamp
-            timestamp_str = message.get("timestamp")
-            if not timestamp_str:
-                timestamp = datetime.now(timezone.utc)
+            # Extract timestamp with fallback to current time
+            timestamp_str = data.get("timestamp") or message.get("timestamp")
+            if timestamp_str:
+                try:
+                    timestamp = datetime.fromisoformat(
+                        timestamp_str.replace("Z", "+00:00")
+                    )
+                except (ValueError, TypeError):
+                    # If timestamp is malformed, fail parsing
+                    logger.debug(f"Failed to parse malformed timestamp: {timestamp_str}")
+                    return None
             else:
-                timestamp = datetime.fromisoformat(
-                    timestamp_str.replace("Z", "+00:00")
-                )
+                # If no timestamp provided, use current UTC time
+                timestamp = datetime.now(timezone.utc)
 
-            # Extract coordinates
-            star_pos = message.get("StarPos")
-            x = star_pos[0] if star_pos and len(star_pos) > 0 else None
-            y = star_pos[1] if star_pos and len(star_pos) > 1 else None
-            z = star_pos[2] if star_pos and len(star_pos) > 2 else None
+            # Extract coordinates - handle partial or missing data gracefully
+            star_pos = data.get("StarPos") or message.get("StarPos")
+            x = None
+            y = None
+            z = None
+            
+            if star_pos and isinstance(star_pos, list):
+                try:
+                    x = float(star_pos[0]) if len(star_pos) > 0 else None
+                except (ValueError, IndexError, TypeError):
+                    x = None
+                
+                try:
+                    y = float(star_pos[1]) if len(star_pos) > 1 else None
+                except (ValueError, IndexError, TypeError):
+                    y = None
+                
+                try:
+                    z = float(star_pos[2]) if len(star_pos) > 2 else None
+                except (ValueError, IndexError, TypeError):
+                    z = None
 
             # Try to get system context from EDDN first
-            allegiance = message.get("SystemAllegiance")
-            government = message.get("SystemGovernment")
-            population = message.get("Population")
+            allegiance = data.get("SystemAllegiance") or message.get("SystemAllegiance")
+            government = data.get("SystemGovernment") or message.get("SystemGovernment")
+            population = data.get("Population") or message.get("Population")
             state = None
-            factions = message.get("Factions", [])
+            
+            factions = data.get("Factions", []) or message.get("Factions", [])
             if factions and len(factions) > 0:
                 state = factions[0].get("FactionState")
             
@@ -419,7 +476,7 @@ class EDDNMonitor:
 
             return signal
 
-        except (KeyError, IndexError, ValueError, TypeError) as e:
+        except (KeyError, TypeError) as e:
             logger.debug(f"Failed to parse HGE signal: {e}")
             return None
 
