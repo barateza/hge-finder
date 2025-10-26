@@ -32,14 +32,14 @@ jobs:
         with:
           python-version: '3.11'
 
-      - name: Install test deps
+      - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install coverage pytest pytest-cov
+          pip install -e .
+          pip install coverage pytest pytest-cov pytest-asyncio
 
       - name: Run tests and generate coverage JSON
         run: |
-          # Replace with your project's test command as needed
           coverage run -m pytest
           coverage json -o coverage.json
 
