@@ -299,3 +299,95 @@ class TestNotificationIntegration:
         # Second should be None due to cooldown
         assert result2 is None
 
+
+# ============================================================================
+# PHASE 1: QUICK WINS - NOTIFICATION MANAGER ERROR HANDLING
+# ============================================================================
+
+
+class TestNotificationManagerErrorHandlingPhase1:
+    """Phase 1: Test error handling in notification manager."""
+
+    def test_notification_manager_invalid_discord_webhook(self) -> None:
+        """Test NotificationManager with invalid Discord webhook (error handling)."""
+        with patch('logging.getLogger') as mock_logger_factory:
+            mock_logger = MagicMock()
+            mock_logger_factory.return_value = mock_logger
+            
+            # Create manager with invalid webhook - should log error
+            manager = NotificationManager(
+                discord_webhook="not-a-valid-url",
+                alert_config=Alert()
+            )
+            
+            # Manager should still be created, but discord_service should be None or error logged
+            assert manager is not None
+
+    def test_notification_manager_distance_calculation_none(self) -> None:
+        """Test check_and_notify behavior when distance is not calculable."""
+        manager = NotificationManager()
+        
+        # Mock the distance calculator after manager creation
+        manager.distance_calc = Mock()
+        manager.distance_calc.calculate_distance.return_value = None
+        
+        # Create mock signal and location
+        signal = Mock()
+        signal.x = 1.0
+        signal.y = 2.0
+        signal.z = 3.0
+        signal.age_seconds = Mock(return_value=3600)
+        signal.system_name = "Test"
+        
+        location = Mock()
+        location.x = 0.0
+        location.y = 0.0
+        location.z = 0.0
+        
+        # Call check_and_notify with None distance
+        result = manager.check_and_notify(signal, location)
+        
+        # The method should return None when distance is None (from early return)
+        assert result is None
+
+    def test_notification_manager_cooldown_expired(self) -> None:
+        """Test cooldown when enough time has passed."""
+        manager = NotificationManager(cooldown_seconds=60)
+        
+        # Set last notification time to 2 minutes ago using utcnow
+        manager.last_notification_time = datetime.utcnow() - timedelta(seconds=120)
+        
+        # Cooldown should be expired
+        assert manager._check_cooldown() is True
+
+    def test_notification_manager_cooldown_active(self) -> None:
+        """Test cooldown when not enough time has passed."""
+        manager = NotificationManager(cooldown_seconds=60)
+        
+        # Set last notification time to 10 seconds ago using utcnow
+        manager.last_notification_time = datetime.utcnow() - timedelta(seconds=10)
+        
+        # Cooldown should still be active
+        assert manager._check_cooldown() is False
+
+    def test_notification_manager_cooldown_first_notification(self) -> None:
+        """Test cooldown on first notification (no prior history)."""
+        manager = NotificationManager(cooldown_seconds=60)
+        
+        # No prior notification
+        manager.last_notification_time = None
+        
+        # Should allow first notification
+        assert manager._check_cooldown() is True
+
+    def test_notification_manager_discord_webhook_none(self) -> None:
+        """Test NotificationManager with no Discord webhook."""
+        manager = NotificationManager(
+            discord_webhook=None,
+            alert_config=Alert()
+        )
+        
+        # Should create successfully without Discord service
+        assert manager is not None
+        assert manager.discord_service is None
+

@@ -492,3 +492,104 @@ class TestInAppNotificationSystemEdgeCases:
         sol_notifs = system.get_by_system("Sol")
         assert len(sol_notifs) == 1
 
+
+# ============================================================================
+# PHASE 1: QUICK WINS - ALERT MODEL VALIDATION (Coverage: 24 → 26)
+# ============================================================================
+
+
+class TestAlertModelValidationPhase1:
+    """Phase 1: Test Alert model validation with edge cases."""
+
+    def test_alert_invalid_negative_distance(self) -> None:
+        """Test Alert validation with negative distance."""
+        with pytest.raises(ValueError, match="max_distance_ly must be positive"):
+            Alert(max_distance_ly=-10.0)
+
+    def test_alert_invalid_negative_age(self) -> None:
+        """Test Alert validation with negative age."""
+        with pytest.raises(ValueError, match="max_age_hours must be positive"):
+            Alert(max_age_hours=-24)
+
+    def test_alert_valid_zero_distance(self) -> None:
+        """Test Alert validation with zero distance (valid edge case)."""
+        alert = Alert(max_distance_ly=0.0)
+        assert alert.max_distance_ly == 0.0
+        assert alert.enabled is True
+
+    def test_alert_valid_zero_age(self) -> None:
+        """Test Alert validation with zero age (valid edge case)."""
+        alert = Alert(max_age_hours=0)
+        assert alert.max_age_hours == 0
+        assert alert.enabled is True
+
+
+# ============================================================================
+# PHASE 1: QUICK WINS - NOTIFICATION MODEL VALIDATION (Coverage: 54 → 56)
+# ============================================================================
+
+
+class TestNotificationModelValidationPhase1:
+    """Phase 1: Test Notification model validation with edge cases."""
+
+    def test_notification_invalid_negative_distance(self) -> None:
+        """Test Notification validation with negative distance."""
+        with pytest.raises(ValueError, match="distance_ly must be positive"):
+            Notification(
+                signal_system="Test",
+                distance_ly=-5.5,
+                timestamp=datetime.now(),
+                channel="discord",
+                success=False,
+                error=None
+            )
+
+    def test_notification_valid_zero_distance(self) -> None:
+        """Test Notification with zero distance (edge case)."""
+        notification = Notification(
+            signal_system="Test",
+            distance_ly=0.0,
+            timestamp=datetime.now(),
+            channel="in_app",
+            success=True,
+            error=None
+        )
+        assert notification.distance_ly == 0.0
+        assert notification.success is True
+
+    def test_notification_invalid_channel(self) -> None:
+        """Test Notification validation with invalid channel."""
+        with pytest.raises(ValueError, match="channel must be 'discord' or 'in_app'"):
+            Notification(
+                signal_system="Test",
+                distance_ly=50.0,
+                timestamp=datetime.now(),
+                channel="invalid_channel",
+                success=False,
+                error=None
+            )
+
+    def test_notification_valid_channels(self) -> None:
+        """Test Notification with valid channels."""
+        # Discord channel
+        notif_discord = Notification(
+            signal_system="Test",
+            distance_ly=50.0,
+            timestamp=datetime.now(),
+            channel="discord",
+            success=True,
+            error=None
+        )
+        assert notif_discord.channel == "discord"
+        
+        # In-app channel
+        notif_inapp = Notification(
+            signal_system="Test",
+            distance_ly=50.0,
+            timestamp=datetime.now(),
+            channel="in_app",
+            success=True,
+            error=None
+        )
+        assert notif_inapp.channel == "in_app"
+
