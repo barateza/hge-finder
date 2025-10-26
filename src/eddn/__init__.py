@@ -47,7 +47,14 @@ class HGESignal:
 
     def age_seconds(self) -> int:
         """Get age of signal in seconds."""
-        return int((datetime.now(timezone.utc) - self.timestamp).total_seconds())
+        now = datetime.now(timezone.utc)
+        ts = self.timestamp
+        
+        # Handle both naive and timezone-aware datetimes
+        if ts.tzinfo is None:
+            ts = ts.replace(tzinfo=timezone.utc)
+        
+        return int((now - ts).total_seconds())
 
     def age_human_readable(self) -> str:
         """Get human-readable age of signal."""
