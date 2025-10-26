@@ -1,14 +1,16 @@
 # HGE Notifier
+
 <!-- COVERAGE_BADGE_START -->
-[![Coverage Status](https://img.shields.io/badge/coverage-76%25-green?logo=python&logoColor=white)](https://github.com/barateza/eddn-hge)
+[![Coverage Status](https://img.shields.io/badge/coverage-81%25-brightgreen?logo=python&logoColor=white)](https://github.com/barateza/eddn-hge)
 <!-- COVERAGE_BADGE_END -->
-[![Tests](https://img.shields.io/badge/tests-506%2F506%20passing-success?logo=pytest)](https://github.com/barateza/eddn-hge)
+[![Tests](https://img.shields.io/badge/tests-620%2F620%20passing-success?logo=pytest)](https://github.com/barateza/eddn-hge)
 [![Python Version](https://img.shields.io/badge/python-3.9%2B-blue?logo=python&logoColor=white)](https://www.python.org/)
 [![License](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
 
 Monitor Elite Dangerous EDDN for High Grade Emission (HGE) signals and see how far they are from your current Commander location.
 
 This repository provides a small Python tool with a CLI and optional web dashboard that:
+
 - listens to the EDDN stream for HGE events
 - tracks your local Elite Dangerous journal to determine your latest system
 - resolves system coordinates (with a local cache) and computes distances in light-years
@@ -82,27 +84,32 @@ LOG_LEVEL=INFO
 Your Elite Dangerous journal files are generated in real-time as you play. Each line in these files is a JSON object representing a gameplay event.
 
 **Windows (most common):**
-```
+
+```text
 C:\Users\<YourUsername>\Saved Games\Frontier Developments\Elite Dangerous
 ```
 
 **How to find your username's actual path:**
+
 1. Open EDDiscovery or another third-party tool
 2. Check its settings for the journal folder location
 3. Or manually navigate: Press `Win+R`, type `%APPDATA%` and work back to find the path
 
 **Files to look for:**
+
 - `Journal.*.log` — These are the journal files the app reads
 - They contain events like: `Location`, `FSDJump`, `SupercruiseExit` (location updates)
 
 ### ⚠️ Important: Mock Mode is ON by Default
 
 By default, the app runs with `EDDN_MOCK_MODE=true`, which means:
+
 - ❌ It will NOT connect to the real EDDN network
 - ❌ It will NOT read your journal file (uses mock location: "Sol")
 - ✅ But you can still test the UI
 
 **To use the app for real:**
+
 1. Set `EDDN_MOCK_MODE=false` in `.env`
 2. Set `JOURNAL_PATH` to your actual Elite Dangerous journal directory
 3. Restart the app
@@ -134,12 +141,14 @@ See `src/config/settings.py` for all available settings and defaults.
    - Choose your notification channel and copy the webhook URL
 
 2. **Add to `.env`:**
+
    ```env
    NOTIFICATIONS_ENABLED=true
    DISCORD_WEBHOOK_URL=https://discord.com/api/webhooks/YOUR_ID/YOUR_TOKEN
    ```
 
 3. **Run the app:**
+
    ```pwsh
    D:/repos/eddn-hge/.venv/Scripts/python.exe -m src --real-eddn
    ```
@@ -150,19 +159,23 @@ Now whenever an HGE signal is detected within your configured distance, you'll g
 
 You don't need the web interface open. Choose any method:
 
-**Option 1: Terminal Window (Simplest)**
+#### Option 1: Terminal Window (Simplest)
+
 ```pwsh
 D:/repos/eddn-hge/.venv/Scripts/python.exe -m src --real-eddn
 ```
+
 Minimizable; output shows all signals in real-time.
 
-**Option 2: Windows Scheduled Task (Always-On)**
+#### Option 2: Windows Scheduled Task (Always-On)
+
 - Create a scheduled task to run the app at login
 - App runs in background automatically
 - Restarts if it crashes
 - See `REAL_EDDN_USAGE.md` for detailed instructions
 
-**Option 3: With Logging**
+#### Option 3: With Logging
+
 ```pwsh
 D:/repos/eddn-hge/.venv/Scripts/python.exe -m src --real-eddn --log-file hge_notifier.log --log-level DEBUG
 ```
@@ -181,15 +194,18 @@ NOTIFICATION_COOLDOWN_SECONDS=600  # Wait 10 min between alerts
 ### Troubleshooting
 
 **No signals appearing?**
+
 - Verify `EDDN_MOCK_MODE=false` in `.env`
 - Check internet connection (EDDN requires it)
 - Wait longer — EDDN signals can be infrequent
 - View logs for errors: `Get-Content hge_notifier.log -Wait`
 
 **Discord notifications not working?**
+
 - Verify webhook URL is correct (copy from Discord again)
 - Check channel permissions allow bot posting
 - Test manually:
+
   ```powershell
   $url = "YOUR_WEBHOOK_URL"
   $payload = @{content="Test"} | ConvertTo-Json
@@ -197,6 +213,7 @@ NOTIFICATION_COOLDOWN_SECONDS=600  # Wait 10 min between alerts
   ```
 
 **Location shows N/A?**
+
 - Ensure `JOURNAL_PATH` is correct in `.env`
 - Verify journal directory exists: `Test-Path "YOUR_JOURNAL_PATH"`
 - Play Elite Dangerous to generate journal entries
@@ -205,6 +222,7 @@ NOTIFICATION_COOLDOWN_SECONDS=600  # Wait 10 min between alerts
 ## Project layout
 
 Key folders:
+
 - `src/eddn/` — EDDN ingestion
 - `src/journal/` — journal parsing and monitoring
 - `src/distance/` — coordinate cache and distance calculations
