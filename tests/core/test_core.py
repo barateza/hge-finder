@@ -157,9 +157,12 @@ class TestCoreOrchestrationEdgeCases:
         )
         
         with patch.object(manager.journal_parser, 'get_latest_location', return_value=location):
-            with patch.object(manager.notification_manager, 'check_and_notify', return_value=None):
-                # Call the callback
-                manager._on_new_hge_signal(signal)
+            # Call the callback - notification system is disabled (None) but should handle gracefully
+            manager._on_new_hge_signal(signal)
+            
+            # Verify signal was added to history
+            assert len(manager.signal_history) > 0
+            assert manager.signal_history[-1].system_name == "Test System"
         
         manager.stop()
 
@@ -210,10 +213,14 @@ class TestCoreOrchestrationEdgeCases:
             timestamp=datetime.utcnow(),
         )
         
-        # Make notification manager raise error
-        with patch.object(manager.notification_manager, 'check_and_notify', side_effect=Exception("Test error")):
-            # Should not raise exception
+        # Mock journal parser to raise error to test exception handling
+        with patch.object(manager.journal_parser, 'get_latest_location', side_effect=Exception("Test error")):
+            # Should not raise exception - callback handles errors gracefully
             manager._on_new_hge_signal(signal)
+            
+            # Verify signal was still added to history
+            assert len(manager.signal_history) > 0
+            assert manager.signal_history[-1].system_name == "Test System"
         
         manager.stop()
 
