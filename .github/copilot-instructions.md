@@ -83,4 +83,42 @@ IMPORTANT: Development will be made on a local machine with Windows OS with Powe
 - Push notifications (Discord, email)
 - Advanced web UI with filtering and visualization
 
+## 8. Coverage & Documentation Maintenance
+
+### 8.1 Automatic Badge Updates
+**IMPORTANT:** After completing any test phase or coverage improvement, ALWAYS update badges in `README.md`:
+
+1. **Coverage Badge** (line ~3 in README.md)
+   - Update coverage percentage: `coverage-XX%25-color`
+   - Colors: green (76%), brightgreen (81%+), orange (<70%)
+   - Example: `[![Coverage Status](https://img.shields.io/badge/coverage-76%25-green...`
+
+2. **Tests Badge** (line ~4 in README.md)
+   - Update test count: `tests-XXX%2FXXX%20passing`
+   - Keep it synchronized with actual test count
+   - Example: `[![Tests](https://img.shields.io/badge/tests-441%2F441%20passing...`
+
+### 8.2 When to Update
+- ✅ Always update test count after adding new tests
+
+### 8.3 Update Process
+1. Run `pytest --cov=src --cov-report=term-missing --tb=no -q` to get latest coverage
+2. Count total passing tests from output
+3. Edit README.md badges with new values
+4. Verify badges render correctly on GitHub
+
+### 8.4 Coverage Documentation
+- Keep `COVERAGE_PROGRESS.md` updated with phase results
+- Update `DEVELOPMENT_NOTES.md` with latest coverage metrics
+- Document any critical coverage gaps in phase summaries
+
+### 8.5 Checklist for Phase Completion
+Before marking a phase complete:
+- [ ] All tests passing (100% pass rate)
+- [ ] Coverage percentage verified with pytest
+- [ ] README.md badges updated
+- [ ] COVERAGE_PROGRESS.md updated with results
+- [ ] Phase summary documentation created
+- [ ] Next phase plan documented
+
 ---
