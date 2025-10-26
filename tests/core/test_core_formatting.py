@@ -33,6 +33,7 @@ class TestCoreFormattingPhase3:
         
         formatted = manager._format_signal(signal)
         
+        assert formatted is not None
         assert formatted["system_name"] == "Complete System"
         assert formatted["coordinates"]["x"] == 10.0
         assert formatted["coordinates"]["y"] == 20.0
@@ -73,6 +74,7 @@ class TestCoreFormattingPhase3:
         
         formatted = manager._format_location(location)
         
+        assert formatted is not None
         assert formatted["system_name"] == "Complete Location"
         assert formatted["coordinates"]["x"] == 100.0
         assert formatted["coordinates"]["y"] == 200.0
@@ -171,6 +173,7 @@ class TestCoreFormattingPhase3:
         formatted = manager._format_signal(signal)
         
         # Should be ISO formatted
+        assert formatted is not None
         assert isinstance(formatted["timestamp"], str)
         assert "T" in formatted["timestamp"]
 
@@ -189,6 +192,7 @@ class TestCoreFormattingPhase3:
         
         formatted = manager._format_location(location)
         
+        assert formatted is not None
         assert isinstance(formatted["timestamp"], str)
         assert "T" in formatted["timestamp"]
 

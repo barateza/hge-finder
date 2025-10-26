@@ -22,7 +22,7 @@ class TestJournalDiscoveryPhase3:
 
     def test_journal_parser_with_custom_path(self):
         """Test journal parser with custom path."""
-        parser = JournalParser(journal_path="/custom/path")
+        parser = JournalParser(journal_path=Path("/custom/path"))
         assert parser is not None
 
     def test_journal_parser_find_default_journal_location(self):
@@ -35,7 +35,7 @@ class TestJournalDiscoveryPhase3:
 
     def test_journal_parser_handles_missing_journal_directory(self):
         """Test journal parser handles missing journal directory."""
-        parser = JournalParser(journal_path="/nonexistent/path")
+        parser = JournalParser(journal_path=Path("/nonexistent/path"))
         
         # Should not crash on missing directory
         assert parser is not None

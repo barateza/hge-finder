@@ -84,6 +84,7 @@ class TestCoreEnrichmentPhase3:
             # Should not have called database
             mock_lookup.assert_not_called()
             # Coordinates should remain unchanged
+            assert enriched is not None
             assert enriched.x == 10.0
             assert enriched.y == 20.0
 
@@ -225,6 +226,7 @@ class TestCoreEnrichmentPhase3:
             enriched = manager._enrich_location_coordinates(location)
             
             # Should update missing coordinates
+            assert enriched is not None
             assert enriched.x == 10.0
             assert enriched.y == 20.0
             assert enriched.z == 30.0
