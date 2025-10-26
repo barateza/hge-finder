@@ -39,8 +39,7 @@ jobs:
 
       - name: Run tests and generate coverage JSON
         run: |
-          coverage run -m pytest
-          coverage json -o coverage.json
+          run: pytest --cov-report=json:coverage.json
 
       - name: Generate shields endpoint JSON from coverage.json
         run: |
