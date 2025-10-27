@@ -50,7 +50,8 @@ class SimpleSignalMerger:
            - Increment report count if within 5-min window
            - Otherwise reset timestamp and count
         4. Update group metadata (last_report_time, total_reports)
-        5. Return updated group
+        5. Capture schema version for debugging/analytics
+        6. Return updated group
         
         Args:
             signal: HGESignal to process and merge.
@@ -78,6 +79,7 @@ class SimpleSignalMerger:
                 total_reports=0,
                 population=signal.population,
                 government=signal.government,
+                schema_version=signal.schema_version,
             )
             self.system_groups[system_name] = group
         else:
@@ -98,6 +100,10 @@ class SimpleSignalMerger:
             group.state = group.state or signal.state
             group.population = group.population or signal.population
             group.government = group.government or signal.government
+            
+            # Update schema_version if signal has it (captures most recent schema)
+            if signal.schema_version:
+                group.schema_version = signal.schema_version
         
         # Infer materials from signal properties
         inferred_material_infos = self.material_inference.infer_materials(

@@ -16,7 +16,19 @@ logger = logging.getLogger(__name__)
 
 @dataclass
 class HGESignal:
-    """Represents a High Grade Emission signal from EDDN."""
+    """Represents a High Grade Emission signal from EDDN.
+    
+    Note on data freshness:
+    - system_name, timestamp, coordinates: Real-time from EDDN
+    - allegiance, state, government, population: Sourced from EDSM
+    - EDSM data may be up to 24 hours stale (updated after tick)
+    - This only affects post-tick accuracy; pre-tick data is reliable
+    
+    Note on system identification:
+    - Primarily uses system_name (more reliable from EDDN stream)
+    - SystemAddress (64-bit ID) available for robustness if needed
+    - See src/system_info.py for SystemAddress handling
+    """
 
     system_name: str
     """Name of the system where HGE was detected."""
@@ -34,7 +46,11 @@ class HGESignal:
     """Z coordinate of the system."""
     
     allegiance: Optional[str] = None
-    """System allegiance (Federation, Empire, Alliance, Independent)."""
+    """System allegiance (Federation, Empire, Alliance, Independent).
+    
+    Note: Sourced from EDSM; may be up to 24 hours stale post-tick.
+    Only affects material inference accuracy after server tick events.
+    """
     
     government: Optional[str] = None
     """System government type."""
@@ -43,7 +59,19 @@ class HGESignal:
     """System population."""
     
     state: Optional[str] = None
-    """Current system faction state (War, Civil Unrest, Outbreak, Boom, etc)."""
+    """Current system faction state (War, Civil Unrest, Outbreak, Boom, etc).
+    
+    Note: Sourced from EDSM; may be up to 24 hours stale post-tick.
+    Only affects material inference accuracy after server tick events.
+    """
+    
+    schema_version: Optional[str] = None
+    """EDDN message schema version that matched this signal.
+    
+    Examples: "SchemaRef.json", "FSSSignalDiscovered.json"
+    Used for debugging, analytics, and handling schema changes.
+    None indicates schema version not captured during parsing.
+    """
 
     def age_seconds(self) -> int:
         """Get age of signal in seconds."""

@@ -177,6 +177,28 @@ class WebSocketManager:
                 await self.sio.emit("status_update", status_data, to=sid)
             except Exception as e:
                 logger.error(f"Error emitting to {sid}: {e}")
+    
+    async def emit_system_group_update(self, system_group_data: Dict[str, Any]) -> None:
+        """Emit system group update to all subscribed clients.
+        
+        Used when Phase 3 signal aggregation is active. Emits aggregated
+        system groups instead of individual signals.
+
+        Args:
+            system_group_data: Dictionary containing formatted system group information.
+        """
+        if not self.sio:
+            return
+
+        # Send to both status and hge_signal subscribers for compatibility
+        subscribers = self.subscriptions.get("status", set()) | self.subscriptions.get("hge_signal", set())
+        logger.debug(f"Broadcasting system group update to {len(subscribers)} clients")
+
+        for sid in subscribers:
+            try:
+                await self.sio.emit("system_group_update", system_group_data, to=sid)
+            except Exception as e:
+                logger.error(f"Error emitting system group update to {sid}: {e}")
 
     def broadcast_to_channel(self, channel: str, event: str, data: Dict[str, Any]) -> None:
         """Broadcast event to all clients subscribed to a channel (non-async wrapper).

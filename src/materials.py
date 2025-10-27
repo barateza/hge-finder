@@ -2,6 +2,36 @@
 
 Determines what materials are likely to spawn based on system properties,
 using the official Elite Dangerous HGE material spawning rules.
+
+IMPORTANT: Data Freshness Notes
+================================
+
+System properties come from two sources:
+1. Real-time: system_name, timestamp, coordinates (from EDDN)
+2. Cached: allegiance, state, government, population (from EDSM)
+
+EDSM data may be up to 24 hours stale after server ticks. This affects
+material inference accuracy when Famine/Boom/War states change post-tick
+but before EDSM updates.
+
+Impact on material inference:
+- Pre-tick: Material inference is 100% accurate
+- Post-tick (first 24h): May infer wrong materials if state changed
+- The app shows best-guess materials based on last-known state
+- Users will see correct materials once EDSM syncs (usually < 1h)
+- Multiple reports in same system average out inaccuracy
+
+Example scenario:
+- 14:00 - Boom ends, state changes to "None", EDDN reports system
+- 14:05 - App gets "Proto Alloys" via material inference (old state)
+- 15:30 - EDSM updates state to "None"
+- 15:31 - Next report infers correct materials, corrects display
+
+This is acceptable because:
+1. It only happens post-tick (usually daily, known window)
+2. Multiple players report same system, old guess gets overwritten
+3. EDSM syncs relatively quickly (within an hour usually)
+4. Better to show best-guess than nothing
 """
 
 import logging

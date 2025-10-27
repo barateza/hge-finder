@@ -4,7 +4,7 @@ import asyncio
 import logging
 from collections import deque
 from pathlib import Path
-from typing import TYPE_CHECKING, Callable, Optional
+from typing import TYPE_CHECKING, Callable, Dict, Optional
 
 if TYPE_CHECKING:
     from src.web.websocket import WebSocketManager
@@ -17,6 +17,8 @@ from src.journal import CommanderLocation, JournalParser
 from src.materials import MaterialInference
 from src.notifications.manager import NotificationManager
 from src.notifications.models import Alert
+from src.signals.merger import SimpleSignalMerger
+from src.signals.models import SystemSignalGroup
 
 
 class HGENotifierManager:
@@ -51,7 +53,7 @@ class HGENotifierManager:
         
         self.distance_calculator = DistanceCalculator()
         
-        # ARCHIVED: Notification manager (feature disabled for now)
+        # Notification manager (feature disabled for now)
         # Will be re-enabled once reliability is improved
         # alert_config = Alert(
         #     max_distance_ly=self.settings.alert_max_distance,
@@ -65,7 +67,12 @@ class HGENotifierManager:
         # )
         self.notification_manager = None  # Disabled for now
 
-        # Track signal history (keep last 100 signals)
+        # Initialize signal merger for aggregation by system and material
+        self.signal_merger = SimpleSignalMerger()
+        self.active_systems: Dict[str, SystemSignalGroup] = {}
+        
+        # Keep signal history for backward compatibility (legacy)
+        # New code should use signal_merger.get_active_systems() instead
         self.signal_history: deque = deque(maxlen=100)
         
         self._initialized = False
@@ -92,18 +99,34 @@ class HGENotifierManager:
         except Exception as e:
             self.logger.debug(f"Error enriching signal with system info: {e}")
 
-        # Add to signal history
-        self.signal_history.append(signal)
+        # Process signal through merger (aggregation by system + material)
+        try:
+            system_group = self.signal_merger.process_new_signal(signal)
+            self.active_systems[system_group.system_name] = system_group
+            
+            self.logger.info(
+                f"Signal merged: {system_group.system_name} "
+                f"({system_group.total_reports} total reports, "
+                f"{len(system_group.materials)} unique materials)"
+            )
+            
+            # Keep legacy signal history for backward compatibility
+            self.signal_history.append(signal)
+        except Exception as e:
+            self.logger.error(f"Error processing signal through merger: {e}")
+            # Still append to history for debugging
+            self.signal_history.append(signal)
+            return
 
-        # Emit WebSocket event if manager is available (non-blocking, silently fails if no event loop)
+        # Emit WebSocket event with updated system group (non-blocking, silently fails if no event loop)
         if self.websocket_manager:
             try:
-                signal_data = self._format_signal(signal)
-                if signal_data:
+                system_group_data = self._format_system_group(system_group)
+                if system_group_data:
                     try:
                         # Try to get the running event loop
                         loop = asyncio.get_running_loop()
-                        loop.create_task(self.websocket_manager.emit_hge_signal(signal_data))
+                        loop.create_task(self._emit_system_group_update(system_group_data))
                     except RuntimeError:
                         # No event loop in this thread - that's OK for sync callbacks
                         self.logger.debug("No event loop in current thread for WebSocket emit")
@@ -180,23 +203,56 @@ class HGENotifierManager:
 
     def get_status(self) -> dict:
         """
-        Get current status including HGE signal, location, distance, and notifications.
+        Get current status including active HGE systems, location, and statistics.
 
         Returns:
-            Dictionary with current status.
+            Dictionary with current status including aggregated systems.
         """
-        signal = self.eddn_monitor.get_latest_signal()
+        # Get top 10 most recently reported active systems
+        active_systems = self.signal_merger.get_active_systems(sort_by="recent")[:10]
+        
         location = self.journal_parser.get_latest_location()
 
         # Fetch coordinates if missing
-        signal = self._enrich_signal_coordinates(signal)
         location = self._enrich_location_coordinates(location)
+
+        # Calculate distances to active systems
+        distances_ly = []
+        formatted_systems = []
+        
+        for system_group in active_systems:
+            system_data = self._format_system_group(system_group)
+            
+            # Calculate distance if commander location available
+            if location and location.x is not None and system_group.coordinates.get("x") is not None:
+                try:
+                    distance = self.distance_calculator.calculate_distance(
+                        location.x, location.y, location.z,
+                        system_group.coordinates["x"],
+                        system_group.coordinates["y"],
+                        system_group.coordinates["z"],
+                    )
+                    if distance is not None:
+                        system_data["distance_ly"] = round(distance, 2)
+                        distances_ly.append(distance)
+                except Exception as e:
+                    self.logger.debug(f"Error calculating distance to {system_group.system_name}: {e}")
+            
+            formatted_systems.append(system_data)
+        
+        # Calculate statistics
+        stats = self.signal_merger.get_statistics()
+        
+        nearest_distance = min(distances_ly) if distances_ly else None
 
         status = {
             "initialized": self._initialized,
-            "hge_signal": self._format_signal(signal),
+            "active_systems": formatted_systems,
             "commander_location": self._format_location(location),
-            "distance": self._calculate_distance(signal, location),
+            "total_unique_systems": stats["total_systems"],
+            "total_reports": stats["total_reports"],
+            "unique_materials": stats["unique_materials"],
+            "nearest_distance_ly": nearest_distance,
             "notifications": {
                 "history": self._format_notification_history(),
                 "stats": self._get_notification_stats(),
@@ -315,6 +371,48 @@ class HGENotifierManager:
                 "z": location.z,
             },
         }
+    
+    @staticmethod
+    def _format_system_group(group: SystemSignalGroup) -> dict:
+        """Format SystemSignalGroup for API/UI consumption.
+        
+        Args:
+            group: SystemSignalGroup to format.
+        
+        Returns:
+            Dictionary with formatted system group data suitable for API responses.
+        """
+        return {
+            "system_name": group.system_name,
+            "allegiance": group.allegiance,
+            "state": group.state,
+            "coordinates": group.coordinates,
+            "materials": [
+                {
+                    "name": material_name,
+                    "count": count,
+                }
+                for material_name, count in group.material_summary
+            ],
+            "last_signal_age": group.last_signal_age,
+            "total_reports": group.total_reports,
+            "confidence": group.confidence_percentage(),
+            "population": group.population,
+            "government": group.government,
+            "schema_version": group.schema_version,
+        }
+    
+    async def _emit_system_group_update(self, system_group_data: dict) -> None:
+        """Emit system group update via WebSocket.
+        
+        Args:
+            system_group_data: Formatted system group data.
+        """
+        try:
+            if self.websocket_manager:
+                await self.websocket_manager.emit_system_group_update(system_group_data)
+        except Exception as e:
+            self.logger.debug(f"Error emitting WebSocket update: {e}")
 
     def _calculate_distance(
         self,

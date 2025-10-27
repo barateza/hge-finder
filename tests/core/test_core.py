@@ -35,9 +35,12 @@ class TestHGENotifierManager:
         
         status = manager.get_status()
         assert status is not None
-        assert "hge_signal" in status
+        # Phase 3: Status now returns aggregated systems instead of single signal
+        assert "active_systems" in status
         assert "commander_location" in status
-        assert "distance" in status
+        assert "total_unique_systems" in status
+        assert "total_reports" in status
+        assert "nearest_distance_ly" in status
         assert "initialized" in status
         
         manager.stop()
@@ -49,12 +52,13 @@ class TestHGENotifierManager:
         
         status = manager.get_status()
         
-        # Should have signal and location data
-        assert status["hge_signal"] is not None
+        # Phase 3: Should have aggregated systems (list) instead of single signal
+        assert isinstance(status["active_systems"], list)
         assert status["commander_location"] is not None
         
-        # Should be able to calculate distance
-        assert status["distance"] is not None
+        # Should have system aggregation statistics
+        assert isinstance(status["total_unique_systems"], int)
+        assert isinstance(status["total_reports"], int)
         
         manager.stop()
 
@@ -78,17 +82,17 @@ class TestCoreOrchestrationEdgeCases:
         manager.stop()
 
     def test_manager_with_missing_signal_data(self) -> None:
-        """Test manager status when signal is unavailable."""
+        """Test manager status when no signals have been received yet."""
         manager = HGENotifierManager()
         manager.start()
         
-        # Mock EDDN monitor to return None
-        with patch.object(manager.eddn_monitor, 'get_latest_signal', return_value=None):
-            status = manager.get_status()
-            
-            # Should handle gracefully
-            assert status is not None
-            assert status["hge_signal"] is None
+        status = manager.get_status()
+        
+        # Phase 3: Should handle gracefully with empty systems list
+        assert status is not None
+        assert isinstance(status["active_systems"], list)
+        # Before any signals, active_systems should be empty
+        assert status["total_unique_systems"] == 0
         
         manager.stop()
 
@@ -99,12 +103,11 @@ class TestCoreOrchestrationEdgeCases:
         
         status = manager.get_status()
         
-        # If both signal and location have coordinates, distance should be a dict with distance_ly
-        if status["hge_signal"] and status["commander_location"]:
-            distance = status["distance"]
-            if distance is not None:
-                assert isinstance(distance, dict)
-                assert "distance_ly" in distance
+        # Phase 3: Distance should be calculated for active systems if available
+        # If active_systems list has entries and location has coordinates
+        if status["active_systems"] and status["commander_location"]:
+            # nearest_distance_ly should be a float or None
+            assert status["nearest_distance_ly"] is None or isinstance(status["nearest_distance_ly"], (int, float))
         
         manager.stop()
 
@@ -130,13 +133,14 @@ class TestCoreOrchestrationEdgeCases:
         
         with patch.object(manager.eddn_monitor, 'get_latest_signal', return_value=signal):
             with patch.object(manager.journal_parser, 'get_latest_location', return_value=location):
+                # Phase 3: Process the signal through merger
+                manager._on_new_hge_signal(signal)
                 status = manager.get_status()
                 
-                # Should handle gracefully - distance may be None (no coords) or a dict with distance_ly (with mocked coords)
-                # When coordinates are enriched by mock, distance will be a dict with distance_ly and formatted keys
-                # Otherwise it will be None
-                distance = status["distance"]
-                assert distance is None or (isinstance(distance, dict) and "distance_ly" in distance)
+                # Should handle gracefully - nearest_distance_ly may be None (no coords)
+                assert status["nearest_distance_ly"] is None or isinstance(status["nearest_distance_ly"], (int, float))
+                # Should still have active_systems list (even if no distances calculated)
+                assert isinstance(status["active_systems"], list)
 
     def test_manager_callback_on_new_signal_with_location(self) -> None:
         """Test callback execution when new signal and location available."""

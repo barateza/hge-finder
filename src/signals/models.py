@@ -132,10 +132,33 @@ class SystemSignalGroup:
     """
     
     population: Optional[int] = None
-    """System population (from EDSM)."""
+    """System population (from EDSM).
+    
+    Note: EDSM data may be up to 24 hours stale (updated post-tick).
+    This only affects material inference accuracy after server tick events.
+    See materials.py MaterialInference for details on how population is used.
+    """
     
     government: Optional[str] = None
-    """System government type (from EDSM)."""
+    """System government type (from EDSM).
+    
+    Note: EDSM data may be up to 24 hours stale (updated post-tick).
+    """
+    
+    allegiance_source: str = "edsm"
+    """Source of allegiance data: 'edsm' or 'eddn'.
+    
+    Useful for debugging data freshness issues. EDSM-sourced allegiance
+    may be up to 24 hours stale post-tick; EDDN-sourced is real-time.
+    """
+    
+    schema_version: Optional[str] = None
+    """EDDN schema version that produced this group.
+    
+    Captured from HGESignal.schema_version for debugging/analytics.
+    Useful for tracking which message schemas are most common.
+    Example: "FSSSignalDiscovered.json"
+    """
     
     @property
     def material_summary(self) -> List[Tuple[str, int]]:
@@ -176,7 +199,14 @@ class SystemSignalGroup:
         Returns:
             Human-readable age string (e.g., '57 mins ago').
         """
-        age = int((datetime.now(timezone.utc) - self.last_report_time).total_seconds())
+        now = datetime.now(timezone.utc)
+        ts = self.last_report_time
+        
+        # Handle both naive and timezone-aware datetimes
+        if ts.tzinfo is None:
+            ts = ts.replace(tzinfo=timezone.utc)
+        
+        age = int((now - ts).total_seconds())
         
         if age < 60:
             return f"{age}s ago"
