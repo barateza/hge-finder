@@ -15,6 +15,7 @@ permissions:
 jobs:
   update-coverage:
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     env:
       # Set to 'true' to also update README.md between markers (optional)
       UPDATE_README: 'false'
@@ -36,12 +37,11 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           pip install -e .
-          pip install coverage pytest pytest-cov pytest-asyncio
+          pip install coverage pytest pytest-cov pytest-asyncio pytest-xdist
 
       - name: Run tests and generate coverage JSON
         run: |
-          coverage run -m pytest
-          coverage json -o coverage.json
+          pytest -n auto --cov=src --cov-report=json:coverage.json --cov-report=term-missing -q
 
       - name: Generate shields endpoint JSON from coverage.json
         run: |
