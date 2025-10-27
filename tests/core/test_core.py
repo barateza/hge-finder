@@ -132,8 +132,11 @@ class TestCoreOrchestrationEdgeCases:
             with patch.object(manager.journal_parser, 'get_latest_location', return_value=location):
                 status = manager.get_status()
                 
-                # Should handle gracefully (distance may be None or 0)
-                assert status["distance"] is None or isinstance(status["distance"], (int, float))
+                # Should handle gracefully - distance may be None (no coords) or a dict with distance_ly (with mocked coords)
+                # When coordinates are enriched by mock, distance will be a dict with distance_ly and formatted keys
+                # Otherwise it will be None
+                distance = status["distance"]
+                assert distance is None or (isinstance(distance, dict) and "distance_ly" in distance)
 
     def test_manager_callback_on_new_signal_with_location(self) -> None:
         """Test callback execution when new signal and location available."""
