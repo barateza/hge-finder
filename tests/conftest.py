@@ -35,7 +35,7 @@ def mock_system_info_lookup():
 
 
 @pytest.fixture(autouse=True)
-def mock_coordinate_database():
+def mock_coordinate_database(request):
     """
     Mock CoordinateDatabase to avoid HTTP requests to EDSM API during tests.
     
@@ -44,8 +44,19 @@ def mock_coordinate_database():
     
     Returns mock coordinates: (10.0, 20.0, 30.0) for any system.
     
+    Note: Tests that explicitly need to test error conditions (like those in
+    test_coordinates.py with TestCoordinatesErrorHandling) are excluded from
+    this mock so they can patch requests.get directly.
+    
     See: TEST_SLOWNESS_DIAGNOSIS.md for details.
     """
+    # Skip mocking for tests that explicitly test error conditions
+    test_class = request.cls.__name__ if request.cls else ""
+    if test_class == "TestCoordinatesErrorHandling":
+        # Let these tests manage their own mocking
+        yield
+        return
+    
     with patch('src.distance.coordinates.CoordinateDatabase.get_coordinates') as mock:
         # Return mock coordinates for any system
         mock.return_value = (10.0, 20.0, 30.0)
