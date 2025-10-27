@@ -476,41 +476,36 @@ class TestSystemSignalGroupIntegration:
             allegiance="Federation",
             state="Expansion",
             coordinates={"x": 100.0, "y": 200.0, "z": 300.0},
-            first_report_time=now - timedelta(hours=5)
+            first_report_time=now - timedelta(minutes=5)
         )
         
-        # Simulate 3 different materials reported at different times
-        group.add_material("Imperial Shielding", now - timedelta(hours=5))
-        group.add_material("Core Dynamics & Proprietary Composites", now - timedelta(hours=4))
-        group.add_material("Proto Alloys & Heat Radiators", now - timedelta(hours=3))
+        # Simulate 3 different materials reported at different times (all within last few minutes)
+        group.add_material("Imperial Shielding", now - timedelta(minutes=5))
+        group.add_material("Core Dynamics & Proprietary Composites", now - timedelta(minutes=4))
+        group.add_material("Proto Alloys & Heat Radiators", now - timedelta(minutes=3))
         
-        # Simulate multiple players confirming Imperial Shielding (6 more times)
+        # Simulate multiple players confirming Imperial Shielding (6 more times within 5-min window)
         for _ in range(6):
-            group.add_material("Imperial Shielding", now - timedelta(minutes=30))
+            group.add_material("Imperial Shielding", now - timedelta(minutes=2))
         
-        # Simulate more confirmations for others (7 more times each)
+        # Simulate more confirmations for others (7 more times each within 5-min window)
         for _ in range(7):
-            group.add_material("Core Dynamics & Proprietary Composites", now - timedelta(minutes=25))
+            group.add_material("Core Dynamics & Proprietary Composites", now - timedelta(minutes=2, seconds=30))
         
         for _ in range(7):
-            group.add_material("Proto Alloys & Heat Radiators", now - timedelta(minutes=20))
+            group.add_material("Proto Alloys & Heat Radiators", now - timedelta(minutes=1, seconds=30))
         
         # Update total
         group.total_reports = sum(m.player_reports for m in group.materials.values())
         
         # Verify state
         assert len(group.materials) == 3
-        # 7 (Shielding: 1 initial + 6) + 8 (Core: 1 initial + 7) + 8 (Proto: 1 initial + 7) = 23
-        # But some are outside 5-min window, so they reset: 1 + 8 + 8 = 17
-        # Actually: Shielding added 7 times (6 recent resets to 1), Core 8, Proto 8 = but all are > 5 min apart
-        # Let me recalculate: each material gets 1 initial + 7 more within 5 min = 8 each = 24 total? No...
-        # The issue is timing: first add at time X, subsequent adds at time X - 30 min (too old, resets)
-        # So each gets: 1 (initial) + 0 (all older adds reset to 1) = 1 each = 3 total? No...
-        # Let me trace it: adds at -30min should reset since initial was at -hours ago
-        # Correct: (1 + 6 resets due to timing = 1) + (1 + 7 resets = 1) + (1 + 7 resets = 1) = 3? 
-        # No wait - each new add_material in loop is within 5min of previous loop, so increments
-        # Let me just check what the actual total is
-        assert group.total_reports == 20
+        # Each material was added once initially (3 adds), then incremented by subsequent adds within 5 min
+        # Imperial Shielding: 1 + 6 = 7 reports
+        # Core Dynamics: 1 + 7 = 8 reports
+        # Proto Alloys: 1 + 7 = 8 reports
+        # Total = 23 reports
+        assert group.total_reports == 23
         
         summary = group.material_summary
         assert len(summary) == 3
@@ -518,10 +513,10 @@ class TestSystemSignalGroupIntegration:
         # Should be sorted by reports
         assert summary[0][1] >= summary[1][1] >= summary[2][1]
         
-        # Confidence should reflect reports (with 20 reports: 50 + 20*3 = 110, capped at 100)
+        # Confidence should reflect reports (with 23 reports: 50 + 23*3 = 119, capped at 100)
         assert group.confidence_percentage() == 100
         
-        # Not expired yet (only 5 hours, need > 40 min for expiration)
+        # Not expired yet (first report only 5 minutes ago, needs > 40 min for expiration)
         assert group.is_likely_expired() is False
     
     def test_expired_system_old_first_report(self):
