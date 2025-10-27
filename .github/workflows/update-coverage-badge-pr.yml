@@ -17,9 +17,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 30
     env:
-      # Set to 'true' to also update README.md between markers (optional)
       UPDATE_README: 'false'
-      # Branch where the raw JSON will be served from (change if your default branch isn't 'main')
       BADGE_BRANCH: main
 
     steps:

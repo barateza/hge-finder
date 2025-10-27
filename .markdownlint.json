@@ -1,0 +1,20 @@
+{
+  "default": true,
+  "MD012": false,
+  "MD013": false,
+  "MD033": {
+    "allowed_elements": [
+      "sup",
+      "table",
+      "tr",
+      "td",
+      "th",
+      "strong",
+      "em",
+      "br"
+    ]
+  },
+  "MD034": false,
+  "MD037": false,
+  "MD007": false
+}
