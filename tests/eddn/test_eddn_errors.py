@@ -225,17 +225,31 @@ class TestEDDNLoggingPhase3:
         """Test EDDN monitor fails quietly without disrupting app."""
         monitor = EDDNMonitor(mock_mode=False)
         
-        # Even in real mode with connection failure, should not raise
-        try:
-            # Connection may fail in real mode, but should be graceful
-            monitor.start()
-            # May be running or not, depending on network
-        except Exception as e:
-            # Expected - real mode may fail without network
-            pass
-        
-        # Should be able to stop safely
-        try:
-            monitor.stop()
-        except Exception:
-            pass
+        # Mock ZMQ to simulate connection failure without actual network access
+        with patch('zmq.Context') as mock_zmq_context:
+            # Simulate a connection that fails after initial setup
+            mock_context_instance = MagicMock()
+            mock_socket = MagicMock()
+            
+            mock_zmq_context.return_value = mock_context_instance
+            mock_context_instance.socket.return_value = mock_socket
+            
+            # Simulate connection timing out (EAGAIN = 11)
+            mock_socket.recv.side_effect = zmq.error.Again(11)
+            
+            # Even in real mode with connection failure, should not raise
+            try:
+                # Connection may fail in real mode, but should be graceful
+                monitor.start()
+                # Give thread a moment to attempt connection
+                import time
+                time.sleep(0.1)
+            except Exception as e:
+                # Expected - real mode may fail without network
+                pass
+            
+            # Should be able to stop safely without crash or exception
+            try:
+                monitor.stop()
+            except Exception as e:
+                pytest.fail(f"stop() should not raise exceptions, got: {e}")

@@ -133,10 +133,15 @@ class EDDNMonitor:
         logger.info("Stopping EDDN monitor")
         self.is_running = False
         
+        # Close ZMQ first (signals thread to stop)
         self._close_zmq()
         
+        # Then wait for thread to finish
         if self._monitor_thread and self._monitor_thread.is_alive():
-            self._monitor_thread.join(timeout=5)
+            try:
+                self._monitor_thread.join(timeout=5)
+            except Exception as e:
+                logger.warning(f"Error joining monitor thread: {e}")
 
     def get_latest_signal(self) -> Optional[HGESignal]:
         """Get the latest HGE signal detected."""
@@ -505,18 +510,39 @@ class EDDNMonitor:
         time.sleep(delay)
 
     def _close_zmq(self) -> None:
-        """Close ZMQ socket and context."""
+        """Close ZMQ socket and context safely.
+        
+        This method handles both normal shutdown and crash scenarios.
+        It's designed to be thread-safe even when called from multiple contexts.
+        """
+        # Close socket first (with short linger to prevent hangs)
         try:
             if self.zmq_socket:
-                self.zmq_socket.close(linger=0)
-                self.zmq_socket = None
+                try:
+                    self.zmq_socket.close(linger=0)
+                except zmq.error.ZMQError as e:
+                    logger.debug(f"ZMQ socket already closed or invalid: {e}")
+                finally:
+                    self.zmq_socket = None
         except Exception as e:
-            logger.error(f"Error closing ZMQ socket: {e}")
+            logger.debug(f"Unexpected error closing ZMQ socket: {e}")
 
+        # Then terminate context (with short timeout to prevent hangs)
         try:
             if self.zmq_context:
-                self.zmq_context.term()
-                self.zmq_context = None
+                try:
+                    # Use term() instead of destroy() to allow graceful shutdown
+                    # This will block until context is empty or timeout occurs
+                    self.zmq_context.term()
+                except (zmq.error.ZMQError, RuntimeError) as e:
+                    logger.debug(f"ZMQ context already terminated or invalid: {e}")
+                    # Force destruction if term fails
+                    try:
+                        self.zmq_context.destroy()
+                    except Exception:
+                        pass
+                finally:
+                    self.zmq_context = None
         except Exception as e:
-            logger.error(f"Error terminating ZMQ context: {e}")
+            logger.debug(f"Unexpected error closing ZMQ context: {e}")
 
