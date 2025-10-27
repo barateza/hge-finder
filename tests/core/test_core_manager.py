@@ -266,8 +266,9 @@ class TestHGENotifierManagerRefreshPhase2:
         status = manager.get_status()
         # Phase 3+: Check active_systems
         assert "active_systems" in status
-        # It should have system name (from mock or from our signal)
-        assert "system_name" in status["hge_signal"]
+        # Should have at least one system in active_systems after signal processed
+        assert len(status["active_systems"]) > 0
+        assert "system_name" in status["active_systems"][0]
 
         manager.stop()
 
