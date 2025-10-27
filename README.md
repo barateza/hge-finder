@@ -1,9 +1,9 @@
 # HGE Notifier
 
 <!-- COVERAGE_BADGE_START -->
-[![Coverage Status](https://img.shields.io/badge/coverage-82%25-brightgreen?logo=python&logoColor=white)](https://github.com/barateza/eddn-hge)
+[![Coverage Status](https://img.shields.io/badge/coverage-81%25-brightgreen?logo=python&logoColor=white)](https://github.com/barateza/eddn-hge)
 <!-- COVERAGE_BADGE_END -->
-[![Tests](https://img.shields.io/badge/tests-743%2F743%20passing-success?logo=pytest)](https://github.com/barateza/eddn-hge)
+[![Tests](https://img.shields.io/badge/tests-834%2F834%20passing-success?logo=pytest)](https://github.com/barateza/eddn-hge)
 [![Python Version](https://img.shields.io/badge/python-3.9%2B-blue?logo=python&logoColor=white)](https://www.python.org/)
 [![License](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
 
