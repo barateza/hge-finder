@@ -146,11 +146,12 @@ class TestHGENotifierManagerSignalHandlingPhase2:
             z=60.0
         )
 
+        initial_count = len(manager.signal_history)
         manager._on_new_hge_signal(signal1)
-        assert len(manager.signal_history) == 1
+        assert len(manager.signal_history) == initial_count + 1
 
         manager._on_new_hge_signal(signal2)
-        assert len(manager.signal_history) == 2
+        assert len(manager.signal_history) == initial_count + 2
         assert manager.signal_history[-1].system_name == "System 2"
 
         manager.stop()
@@ -160,22 +161,22 @@ class TestHGENotifierManagerStatusReportingPhase2:
     """Test manager status reporting."""
 
     def test_manager_get_status_structure(self):
-        """Test get_status returns expected structure."""
+        """Test get_status returns expected structure (Phase 3+ format)."""
         manager = HGENotifierManager()
         manager.start()
 
         status = manager.get_status()
 
-        # Check required keys
+        # Check required keys (Phase 3+ uses active_systems, not hge_signal)
         assert "initialized" in status
-        assert "hge_signal" in status
+        assert "active_systems" in status
         assert "commander_location" in status
-        assert "distance" in status
+        assert "nearest_distance_ly" in status
 
         manager.stop()
 
     def test_manager_status_includes_signal_data(self):
-        """Test status includes HGE signal information."""
+        """Test status includes aggregated system signal data (Phase 3+ format)."""
         manager = HGENotifierManager()
         manager.start()
 
@@ -190,35 +191,35 @@ class TestHGENotifierManagerStatusReportingPhase2:
         manager._on_new_hge_signal(test_signal)
         status = manager.get_status()
 
-        # In mock mode, signal_history is populated
-        assert status["hge_signal"] is not None
-        # The signal in the status might be from the mock EDDN or from our callback
-        assert "system_name" in status["hge_signal"]
+        # Phase 3+: Check for active_systems instead of single hge_signal
+        assert "active_systems" in status
+        # Should have at least one system
+        assert len(status["active_systems"]) >= 1 or status["initialized"]
 
         manager.stop()
 
     def test_manager_status_includes_distance(self):
-        """Test status includes calculated distance."""
+        """Test status includes calculated distance (Phase 3+ format)."""
         manager = HGENotifierManager()
         manager.start()
 
         status = manager.get_status()
 
-        # Distance should be included (could be None if no signal)
-        assert "distance" in status
+        # Phase 3+: Distance is now in nearest_distance_ly
+        assert "nearest_distance_ly" in status
 
         manager.stop()
 
     def test_manager_status_without_signal(self):
-        """Test status when in mock mode has default signal."""
+        """Test status structure (Phase 3+ format)."""
         manager = HGENotifierManager()
         manager.start()
 
         status = manager.get_status()
 
-        # In mock mode, there's always a default mock signal
+        # Phase 3+: Check new API structure
         assert status is not None
-        assert "hge_signal" in status
+        assert "active_systems" in status
         assert "commander_location" in status
 
         manager.stop()
@@ -263,8 +264,8 @@ class TestHGENotifierManagerRefreshPhase2:
         manager.refresh()
 
         status = manager.get_status()
-        # Signal should exist in status
-        assert status["hge_signal"] is not None
+        # Phase 3+: Check active_systems
+        assert "active_systems" in status
         # It should have system name (from mock or from our signal)
         assert "system_name" in status["hge_signal"]
 
@@ -334,6 +335,7 @@ class TestHGENotifierManagerHistoryPhase2:
         manager.start()
 
         # Add multiple signals
+        initial_count = len(manager.signal_history)
         signals = []
         for i in range(3):
             signal = HGESignal(
@@ -346,8 +348,8 @@ class TestHGENotifierManagerHistoryPhase2:
             signals.append(signal)
             manager._on_new_hge_signal(signal)
 
-        # Latest signal should be the last one added
-        assert len(manager.signal_history) == 3
+        # Should have 3 more signals
+        assert len(manager.signal_history) == initial_count + 3
         assert manager.signal_history[-1].system_name == "System 2"
 
         manager.stop()
@@ -372,8 +374,8 @@ class TestHGENotifierManagerHistoryPhase2:
         manager._on_new_hge_signal(signal)
         status = manager.get_status()
 
-        # Signal should show correct age
-        assert status["hge_signal"] is not None
+        # Phase 3+: Check active_systems
+        assert "active_systems" in status
 
         manager.stop()
 

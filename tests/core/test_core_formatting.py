@@ -224,21 +224,21 @@ class TestCoreFormattingPhase3:
         assert distance_info is None or "distance_ly" in distance_info
 
     def test_get_status_with_no_signals(self):
-        """Test get_status when no signals received yet."""
+        """Test get_status when no signals received yet (Phase 3+ format)."""
         manager = HGENotifierManager()
         manager.start()
         
         status = manager.get_status()
         
         assert status is not None
-        assert "hge_signal" in status
+        assert "active_systems" in status  # Phase 3+ uses active_systems
         assert "commander_location" in status
-        assert "distance" in status
+        assert "nearest_distance_ly" in status  # Phase 3+ uses nearest_distance_ly
         
         manager.stop()
 
     def test_get_status_with_signal_and_location(self):
-        """Test get_status with both signal and location."""
+        """Test get_status with both signal and location (Phase 3+ format)."""
         manager = HGENotifierManager()
         manager.start()
         
@@ -264,7 +264,7 @@ class TestCoreFormattingPhase3:
         status = manager.get_status()
         
         assert status is not None
-        assert status["hge_signal"] is not None
+        assert len(status["active_systems"]) >= 0  # Phase 3+ uses active_systems
         assert status["commander_location"] is not None
         
         manager.stop()

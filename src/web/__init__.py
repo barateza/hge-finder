@@ -260,6 +260,225 @@ def create_app(manager: HGENotifierManager, ws_manager: WebSocketManager | None 
             logger.error(f"Error getting trends: {e}")
             return jsonify({"status": "error", "message": str(e)}), 500
 
+    @app.route("/api/systems")
+    def api_systems() -> Union[Response, Tuple[Response, int]]:
+        """Get all active systems aggregated by system name and material.
+
+        Query Parameters:
+            sort_by: 'recent' (default), 'reports', or 'distance'
+            material: Filter by material name (optional)
+            limit: Maximum number of systems to return (default 50)
+
+        Returns:
+            JSON array of active SystemSignalGroup objects with formatting.
+        """
+        try:
+            sort_by = request.args.get("sort_by", "recent", type=str)
+            material_filter = request.args.get("material", None, type=str)
+            limit = request.args.get("limit", 50, type=int)
+
+            # Validate sort_by parameter (merger only supports 'recent', 'reports', 'name')
+            valid_sorts = ['recent', 'reports', 'distance']
+            if sort_by not in valid_sorts:
+                sort_by = 'recent'
+
+            # Get active systems (use 'recent' or 'reports' for merger, handle 'distance' in post-processing)
+            merger_sort = 'recent' if sort_by == 'distance' else sort_by
+            active_systems = manager.signal_merger.get_active_systems(sort_by=merger_sort)
+
+            # Filter by material if specified
+            if material_filter:
+                active_systems = [
+                    system for system in active_systems
+                    if material_filter in system.materials
+                ]
+
+            # Format systems
+            formatted_systems = []
+            location = manager.journal_parser.get_latest_location()
+            location = manager._enrich_location_coordinates(location)
+
+            for system_group in active_systems[:limit]:
+                system_data = manager._format_system_group(system_group)
+
+                # Calculate distance if commander location available
+                if location and location.x is not None and system_group.coordinates.get("x") is not None:
+                    try:
+                        distance = manager.distance_calculator.calculate_distance(
+                            location.x, location.y, location.z,
+                            system_group.coordinates["x"],
+                            system_group.coordinates["y"],
+                            system_group.coordinates["z"],
+                        )
+                        if distance is not None:
+                            system_data["distance_ly"] = round(distance, 2)
+                    except Exception as e:
+                        logger.debug(f"Error calculating distance to {system_group.system_name}: {e}")
+
+                formatted_systems.append(system_data)
+
+            # Sort by distance if requested and distances are available
+            if sort_by == 'distance':
+                formatted_systems.sort(key=lambda s: s.get('distance_ly', float('inf')))
+
+            return jsonify({
+                "status": "success",
+                "data": formatted_systems,
+                "count": len(formatted_systems),
+                "material_filter": material_filter,
+                "sort_by": sort_by,
+            })
+        except Exception as e:
+            logger.error(f"Error getting systems: {e}")
+            return jsonify({"status": "error", "message": str(e)}), 500
+
+    @app.route("/api/systems/<system_name>")
+    def api_system_detail(system_name: str) -> Union[Response, Tuple[Response, int]]:
+        """Get detailed information about a specific system.
+
+        Args:
+            system_name: Name of the system to retrieve.
+
+        Returns:
+            JSON object with system details, material breakdown, and player reports.
+        """
+        try:
+            system_group = manager.signal_merger.get_system_by_name(system_name)
+
+            if system_group is None:
+                return jsonify({
+                    "status": "error",
+                    "message": f"System '{system_name}' not found in active systems",
+                }), 404
+
+            system_data = manager._format_system_group(system_group)
+
+            # Calculate distance
+            location = manager.journal_parser.get_latest_location()
+            location = manager._enrich_location_coordinates(location)
+
+            if location and location.x is not None and system_group.coordinates.get("x") is not None:
+                try:
+                    distance = manager.distance_calculator.calculate_distance(
+                        location.x, location.y, location.z,
+                        system_group.coordinates["x"],
+                        system_group.coordinates["y"],
+                        system_group.coordinates["z"],
+                    )
+                    if distance is not None:
+                        system_data["distance_ly"] = round(distance, 2)
+                except Exception as e:
+                    logger.debug(f"Error calculating distance: {e}")
+
+            # Add material breakdown details (materials is Dict[str, MaterialReport])
+            system_data["material_breakdown"] = [
+                {
+                    "name": material_name,
+                    "count": material_report.player_reports,
+                    "timestamp": material_report.timestamp.isoformat(),
+                    "age": material_report.age_human_readable(),
+                }
+                for material_name, material_report in system_group.materials.items()
+            ]
+
+            return jsonify({
+                "status": "success",
+                "data": system_data,
+            })
+        except Exception as e:
+            logger.error(f"Error getting system details: {e}")
+            return jsonify({"status": "error", "message": str(e)}), 500
+
+    @app.route("/api/materials/<material_name>")
+    def api_systems_by_material(material_name: str) -> Union[Response, Tuple[Response, int]]:
+        """Get all active systems that have reported a specific material.
+
+        Args:
+            material_name: Name of the material to search for.
+
+        Returns:
+            JSON array of systems containing the specified material.
+        """
+        try:
+            limit = request.args.get("limit", 50, type=int)
+
+            # Get systems with this material
+            systems_with_material = manager.signal_merger.get_systems_by_material(material_name)
+
+            # Format systems
+            formatted_systems = []
+            location = manager.journal_parser.get_latest_location()
+            location = manager._enrich_location_coordinates(location)
+
+            for system_group in systems_with_material[:limit]:
+                system_data = manager._format_system_group(system_group)
+
+                # Calculate distance
+                if location and location.x is not None and system_group.coordinates.get("x") is not None:
+                    try:
+                        distance = manager.distance_calculator.calculate_distance(
+                            location.x, location.y, location.z,
+                            system_group.coordinates["x"],
+                            system_group.coordinates["y"],
+                            system_group.coordinates["z"],
+                        )
+                        if distance is not None:
+                            system_data["distance_ly"] = round(distance, 2)
+                    except Exception as e:
+                        logger.debug(f"Error calculating distance: {e}")
+
+                formatted_systems.append(system_data)
+
+            return jsonify({
+                "status": "success",
+                "data": formatted_systems,
+                "material": material_name,
+                "count": len(formatted_systems),
+            })
+        except Exception as e:
+            logger.error(f"Error getting systems by material: {e}")
+            return jsonify({"status": "error", "message": str(e)}), 500
+
+    @app.route("/api/materials")
+    def api_all_materials() -> Union[Response, Tuple[Response, int]]:
+        """Get all unique materials found across active systems with counts.
+
+        Returns:
+            JSON object with unique materials and their occurrence counts.
+        """
+        try:
+            all_materials_list = manager.signal_merger.get_all_materials()
+            active_systems = manager.signal_merger.get_active_systems()
+
+            # Build material statistics
+            materials_data = []
+            for material_name in all_materials_list:
+                # Count occurrences and total reports for this material
+                occurrences = 0
+                total_reports = 0
+                for system in active_systems:
+                    if material_name in system.materials:
+                        occurrences += 1
+                        total_reports += system.materials[material_name].player_reports
+
+                materials_data.append({
+                    "name": material_name,
+                    "occurrences": occurrences,
+                    "total_reports": total_reports,
+                })
+
+            # Sort by total reports descending
+            materials_data.sort(key=lambda x: x["total_reports"], reverse=True)
+
+            return jsonify({
+                "status": "success",
+                "data": materials_data,
+                "count": len(materials_data),
+            })
+        except Exception as e:
+            logger.error(f"Error getting materials: {e}")
+            return jsonify({"status": "error", "message": str(e)}), 500
+
     @app.route("/timeline")
     def timeline_page() -> str:
         """Render the timeline/charts page."""

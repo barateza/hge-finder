@@ -104,7 +104,7 @@ class TestFlaskStatusAPIPhase2:
             assert isinstance(data, dict)
 
     def test_status_endpoint_includes_required_fields(self):
-        """Test /api/status includes required fields."""
+        """Test /api/status includes required fields (Phase 3+ format)."""
         manager = HGENotifierManager()
         app = create_app(manager)
         
@@ -112,9 +112,9 @@ class TestFlaskStatusAPIPhase2:
             response = client.get("/api/status")
             data = json.loads(response.data)
             
-            # Should have these fields
+            # Phase 3+: Should have these fields
             assert "initialized" in data
-            assert "hge_signal" in data
+            assert "active_systems" in data  # Phase 3+ uses active_systems
             assert "commander_location" in data
 
     def test_status_endpoint_after_manager_start(self):

@@ -185,9 +185,11 @@ class TestCoreEnrichmentPhase3:
         manager.stop()
 
     def test_signal_enrichment_maintains_history(self):
-        """Test multiple signals maintain correct history."""
+        """Test multiple signals are added to history."""
         manager = HGENotifierManager()
         manager.start()
+        
+        initial_count = len(manager.signal_history)
         
         for i in range(3):
             signal = HGESignal(
@@ -199,11 +201,12 @@ class TestCoreEnrichmentPhase3:
             )
             manager._on_new_hge_signal(signal)
         
-        # All signals should be in history
-        assert len(manager.signal_history) == 3
-        assert manager.signal_history[0].system_name == "System 0"
-        assert manager.signal_history[1].system_name == "System 1"
-        assert manager.signal_history[2].system_name == "System 2"
+        # Should have 3 more signals added
+        assert len(manager.signal_history) == initial_count + 3
+        # Last 3 should be our test signals
+        assert manager.signal_history[-3].system_name == "System 0"
+        assert manager.signal_history[-2].system_name == "System 1"
+        assert manager.signal_history[-1].system_name == "System 2"
         
         manager.stop()
 
