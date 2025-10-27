@@ -653,6 +653,105 @@ HTML_TEMPLATE = """
         }
         
         /* ===================================================
+           SYSTEMS TABLE STYLING
+           =================================================== */
+        
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        
+        table th {
+            background: rgba(0, 100, 0, 0.2);
+            padding: 12px;
+            text-align: left;
+            border-bottom: 2px solid #00ff00;
+            color: #00ff00;
+            font-weight: bold;
+        }
+        
+        table td {
+            padding: 12px;
+            border-bottom: 1px solid rgba(0, 255, 0, 0.2);
+            color: #00ff00;
+        }
+        
+        table tbody tr:hover {
+            background: rgba(0, 100, 0, 0.3);
+        }
+        
+        table tbody tr:nth-child(even) {
+            background: rgba(0, 50, 0, 0.2);
+        }
+        
+        /* System name column */
+        .system-name {
+            font-weight: bold;
+            color: #ffff00;
+            font-size: 1.05em;
+        }
+        
+        /* Materials column */
+        .materials-list-inline {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+        }
+        
+        .materials-list-inline li {
+            padding: 3px 0;
+            margin: 0;
+            font-size: 0.9em;
+        }
+        
+        .material-count {
+            color: #ffff00;
+            font-weight: bold;
+            margin-left: 5px;
+        }
+        
+        /* Status indicators */
+        .status-fresh {
+            color: #00ff00;
+        }
+        
+        .status-recent {
+            color: #ffff00;
+        }
+        
+        .status-old {
+            color: #ff9900;
+        }
+        
+        .status-stale {
+            color: #ff0000;
+        }
+        
+        /* Material filter tabs */
+        .material-tab {
+            background: #001a00;
+            border: 2px solid #00ff00;
+            color: #00ff00;
+            padding: 8px 15px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-family: 'Courier New', monospace;
+            font-size: 0.95em;
+            transition: all 0.3s;
+            white-space: nowrap;
+        }
+        
+        .material-tab:hover {
+            background: #003300;
+            box-shadow: 0 0 10px rgba(0, 255, 0, 0.5);
+        }
+        
+        .material-tab.active {
+            background: #003300;
+            box-shadow: 0 0 15px rgba(0, 255, 0, 0.7);
+        }
+        
+        /* ===================================================
            MOBILE RESPONSIVE ENHANCEMENTS
            =================================================== */
         
@@ -820,6 +919,56 @@ HTML_TEMPLATE = """
             <a href="/notifications" style="background: #001a00; border: 2px solid #00ff00; color: #00ff00; padding: 8px 15px; border-radius: 5px; text-decoration: none; transition: all 0.3s;">📢 Notifications</a>
         </div>
         
+        <!-- Systems Aggregation Section -->
+        <div id="systemsSection" style="margin-bottom: 30px;">
+            <!-- Sorting Controls -->
+            <div style="margin-bottom: 15px; display: flex; gap: 10px; justify-content: center; flex-wrap: wrap;">
+                <label for="sortSelect" style="color: #00ff00; font-weight: bold; display: flex; align-items: center;">Sort by:</label>
+                <select id="sortSelect" onchange="updateSystemsDisplay()" style="background: #001a00; border: 2px solid #00ff00; color: #00ff00; padding: 8px 15px; border-radius: 5px; font-family: 'Courier New', monospace; font-size: 0.95em;">
+                    <option value="recent">📅 Most Recent</option>
+                    <option value="reports">📊 Most Reports</option>
+                    <option value="distance">📏 Closest Distance</option>
+                </select>
+            </div>
+            
+            <!-- Material Filter Tabs -->
+            <div style="margin-bottom: 15px; border-bottom: 2px solid #00ff00; padding-bottom: 10px; display: flex; gap: 8px; justify-content: center; flex-wrap: wrap;" id="materialTabs">
+                <button class="material-tab active" data-material="all" onclick="filterByMaterial('all', event)" style="background: #003300; border: 2px solid #00ff00; color: #00ff00; padding: 8px 15px; border-radius: 5px; cursor: pointer; font-family: 'Courier New', monospace; font-size: 0.95em; transition: all 0.3s;">All</button>
+            </div>
+            
+            <!-- Systems Table -->
+            <div style="background: rgba(0, 50, 0, 0.3); border: 2px solid #00ff00; border-radius: 5px; overflow-x: auto; box-shadow: 0 0 20px rgba(0, 255, 0, 0.2);">
+                <table id="systemsTable" style="width: 100%; border-collapse: collapse; font-family: 'Courier New', monospace; font-size: 0.95em;">
+                    <thead>
+                        <tr style="border-bottom: 2px solid #00ff00;">
+                            <th style="padding: 12px; text-align: left; color: #00ff00;">System</th>
+                            <th style="padding: 12px; text-align: left; color: #00ff00;">Allegiance / State</th>
+                            <th style="padding: 12px; text-align: left; color: #00ff00;">Materials</th>
+                            <th style="padding: 12px; text-align: center; color: #00ff00;">Last Signal</th>
+                            <th style="padding: 12px; text-align: center; color: #00ff00;">Reports</th>
+                            <th style="padding: 12px; text-align: center; color: #00ff00;">Distance</th>
+                            <th style="padding: 12px; text-align: center; color: #00ff00;">Status</th>
+                        </tr>
+                    </thead>
+                    <tbody id="systemsTableBody">
+                        <tr>
+                            <td colspan="7" style="padding: 30px; text-align: center; color: #008800;">⏳ Loading active systems...</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+            
+            <!-- Systems Summary -->
+            <div style="margin-top: 15px; text-align: center; color: #00ff00;">
+                <span>Total systems: <span id="totalSystems" style="color: #ffff00; font-weight: bold;">0</span></span>
+                <span style="margin: 0 15px;">|</span>
+                <span>Total reports: <span id="totalReports" style="color: #ffff00; font-weight: bold;">0</span></span>
+                <span style="margin: 0 15px;">|</span>
+                <span>Materials: <span id="totalMaterials" style="color: #ffff00; font-weight: bold;">0</span></span>
+            </div>
+        </div>
+        
+        <!-- Classic Status Cards Section -->
         <div class="status-grid" id="statusGrid">
             <div class="card">
                 <h2>⏳ Loading...</h2>
@@ -915,6 +1064,12 @@ HTML_TEMPLATE = """
             if (data) {
                 renderStatus(data);
             }
+        });
+        
+        socket.on('system_group_update', (data) => {
+            console.log('🔄 System Group Update:', data);
+            // Refresh the systems display when new signal arrives
+            updateSystemsDisplay();
         });
         
         // =====================================================
@@ -1155,8 +1310,170 @@ HTML_TEMPLATE = """
             }
         }
         
+        // =====================================================
+        // SYSTEMS AGGREGATION FUNCTIONS
+        // =====================================================
+        const systemsEndpoint = "/api/systems";
+        const materialsEndpoint = "/api/materials";
+        
+        let currentSortBy = "recent";
+        let currentMaterialFilter = "all";
+        let allSystems = [];
+        let allMaterials = [];
+        
+        async function loadMaterials() {
+            // Load available materials and populate filter tabs
+            try {
+                const response = await fetch(materialsEndpoint);
+                const data = await response.json();
+                
+                if (data.status !== 'success' || !data.data) {
+                    console.warn("No materials available");
+                    return;
+                }
+                
+                allMaterials = data.data;
+                
+                // Populate material tabs
+                const tabsContainer = document.getElementById('materialTabs');
+                const existingTabs = tabsContainer.querySelectorAll('.material-tab');
+                
+                // Keep the "All" tab, remove others if needed
+                if (existingTabs.length === 1) {
+                    // Add new tabs for each material
+                    allMaterials.forEach(material => {
+                        const btn = document.createElement('button');
+                        btn.className = 'material-tab';
+                        btn.setAttribute('data-material', material.name);
+                        btn.textContent = '💎 ' + material.name + ' (' + material.occurrences + ')';
+                        btn.onclick = (e) => filterByMaterial(material.name, e);
+                        tabsContainer.appendChild(btn);
+                    });
+                }
+            } catch (error) {
+                console.error('Error loading materials:', error);
+            }
+        }
+        
+        async function updateSystemsDisplay() {
+            // Fetch and display systems based on current filters
+            try {
+                const sortBy = document.getElementById('sortSelect').value;
+                const url = new URL(systemsEndpoint, window.location.origin);
+                url.searchParams.append('sort_by', sortBy);
+                url.searchParams.append('limit', 100);
+                
+                if (currentMaterialFilter !== 'all') {
+                    url.searchParams.append('material', currentMaterialFilter);
+                }
+                
+                const response = await fetch(url);
+                const data = await response.json();
+                
+                if (data.status !== 'success' || !data.data) {
+                    displayNoSystems();
+                    return;
+                }
+                
+                allSystems = data.data;
+                renderSystemsTable(allSystems);
+                updateSystemsSummary(data.count);
+            } catch (error) {
+                console.error('Error updating systems display:', error);
+                displayNoSystems();
+            }
+        }
+        
+        function filterByMaterial(materialName, event) {
+            // Filter systems by material type
+            // Update active tab
+            document.querySelectorAll('.material-tab').forEach(tab => {
+                tab.classList.remove('active');
+            });
+            event.target.classList.add('active');
+            
+            // Update filter and refresh display
+            currentMaterialFilter = materialName;
+            updateSystemsDisplay();
+        }
+        
+        function renderSystemsTable(systems) {
+            // Render systems table with aggregated data
+            const tbody = document.getElementById('systemsTableBody');
+            
+            if (!systems || systems.length === 0) {
+                displayNoSystems();
+                return;
+            }
+            
+            tbody.innerHTML = systems.map(system => {
+                // Determine status indicator
+                let statusClass = 'status-fresh';
+                let statusEmoji = '🟢';
+                const ageStr = system.last_signal_age;
+                
+                if (ageStr.includes('h') || ageStr.includes('d')) {
+                    const match = ageStr.match(/(\d+)/);
+                    if (match) {
+                        const value = parseInt(match[1]);
+                        if (ageStr.includes('d')) {
+                            statusClass = 'status-stale';
+                            statusEmoji = '🔴';
+                        } else if (value >= 2) {
+                            statusClass = 'status-old';
+                            statusEmoji = '🟠';
+                        } else {
+                            statusClass = 'status-recent';
+                            statusEmoji = '🟡';
+                        }
+                    }
+                }
+                
+                // Build materials list
+                const materialsHtml = system.materials.map(mat => 
+                    '<li>💎 ' + mat.name + '<span class="material-count">×' + mat.count + '</span></li>'
+                ).join('');
+                
+                return '<tr>' +
+                    '<td><span class="system-name">' + system.system_name + '</span></td>' +
+                    '<td>' + (system.allegiance || 'N/A') + ' / ' + (system.state || 'N/A') + '</td>' +
+                    '<td><ul class="materials-list-inline">' + materialsHtml + '</ul></td>' +
+                    '<td style="text-align: center; font-size: 0.9em;">' + system.last_signal_age + '</td>' +
+                    '<td style="text-align: center; color: #ffff00; font-weight: bold;">' + system.total_reports + '</td>' +
+                    '<td style="text-align: center;">' + (system.distance_ly ? system.distance_ly.toFixed(2) + ' ly' : 'N/A') + '</td>' +
+                    '<td style="text-align: center;"><span class="' + statusClass + '">' + statusEmoji + '</span></td>' +
+                    '</tr>';
+            }).join('');
+        }
+        
+        function displayNoSystems() {
+            // Display message when no systems are available
+            const tbody = document.getElementById('systemsTableBody');
+            tbody.innerHTML = '<tr><td colspan="7" style="padding: 30px; text-align: center; color: #008800;">⏳ No systems found</td></tr>';
+        }
+        
+        function updateSystemsSummary(count) {
+            // Update the systems summary statistics
+            const totalReports = allSystems.reduce((sum, sys) => sum + sys.total_reports, 0);
+            const uniqueMaterials = new Set();
+            
+            allSystems.forEach(system => {
+                system.materials.forEach(mat => {
+                    uniqueMaterials.add(mat.name);
+                });
+            });
+            
+            document.getElementById('totalSystems').textContent = count;
+            document.getElementById('totalReports').textContent = totalReports;
+            document.getElementById('totalMaterials').textContent = uniqueMaterials.size;
+        }
+        
         // Initial load via REST API
         updateStatusViaREST();
+        
+        // Load systems and materials
+        loadMaterials();
+        updateSystemsDisplay();
         
         // Note: Real-time updates are driven by WebSocket events when connected
         // Fallback polling (every 30 seconds) is automatically enabled on disconnect
