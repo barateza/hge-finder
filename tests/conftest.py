@@ -11,7 +11,7 @@ sys.path.insert(0, str(project_root))
 
 
 @pytest.fixture(autouse=True)
-def mock_system_info_lookup():
+def mock_system_info_lookup(request):
     """
     Mock SystemInfoLookup to avoid HTTP requests during tests.
     
@@ -20,8 +20,18 @@ def mock_system_info_lookup():
     to take 48+ seconds to complete (3-4 seconds per test with 
     signal enrichment).
     
+    Exception: Tests in test_system_info.py are excluded so they can
+    test SystemInfoLookup directly without global mocking.
+    
     See: TEST_SLOWNESS_DIAGNOSIS.md for details.
     """
+    # Skip mocking for system_info tests which need to test it directly
+    test_module = request.module.__name__ if hasattr(request, 'module') else ""
+    if "test_system_info" in test_module:
+        # Let system_info tests manage their own mocking
+        yield
+        return
+    
     mock_system_info = {
         'allegiance': 'Federation',
         'government': 'Democracy',
