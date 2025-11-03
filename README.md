@@ -32,29 +32,44 @@ pip install -e ".[dev]"
 Run the CLI (defaults to a terminal UI):
 
 ```pwsh
-hge-notifier
+python -m src
 ```
 
 Run the CLI with real EDDN data:
 
 ```pwsh
-hge-notifier --real-eddn
+python -m src --real-eddn
 ```
 
 Run the web dashboard:
 
 ```pwsh
-hge-notifier --web
+python -m src --web
 # then open http://localhost:5000
 ```
 
 Run the web dashboard with real EDDN data:
 
 ```pwsh
-hge-notifier --web --real-eddn
+python -m src --web --real-eddn
 ```
 
 See `REAL_EDDN_USAGE.md` for more CLI options and VS Code debug configurations.
+
+### Advanced CLI Options
+
+The CLI now supports a table view with sorting and filtering capabilities.
+
+-   `--table`: Display systems in a table format.
+-   `--sort <option>`: Sort systems by `recent`, `reports`, or `distance`.
+-   `--material <name>`: Filter systems by a specific material name (e.g., "Proto Heat Radiators").
+-   `--details`: Show additional system details like state and population in the table.
+
+**Example:**
+
+```pwsh
+python -m src --real-eddn --table --sort distance --material "Proto Heat Radiators"
+```
 
 ## Configuration
 
@@ -150,7 +165,7 @@ See `src/config/settings.py` for all available settings and defaults.
 3. **Run the app:**
 
    ```pwsh
-   D:/repos/eddn-hge/.venv/Scripts/python.exe -m src --real-eddn
+python -m src --real-eddn
    ```
 
 Now whenever an HGE signal is detected within your configured distance, you'll get a Discord message! 🎯
@@ -162,7 +177,7 @@ You don't need the web interface open. Choose any method:
 #### Option 1: Terminal Window (Simplest)
 
 ```pwsh
-D:/repos/eddn-hge/.venv/Scripts/python.exe -m src --real-eddn
+python -m src --real-eddn
 ```
 
 Minimizable; output shows all signals in real-time.
@@ -177,7 +192,7 @@ Minimizable; output shows all signals in real-time.
 #### Option 3: With Logging
 
 ```pwsh
-D:/repos/eddn-hge/.venv/Scripts/python.exe -m src --real-eddn --log-file hge_notifier.log --log-level DEBUG
+python -m src --real-eddn --log-file hge_notifier.log --log-level DEBUG
 ```
 
 ### Notification Filtering
