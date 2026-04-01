@@ -7,6 +7,12 @@
 [![Python Version](https://img.shields.io/badge/python-3.9%2B-blue?logo=python&logoColor=white)](https://www.python.org/)
 [![License](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
 
+---
+
+_Elite Dangerous is a space simulation game. High Grade Emissions (HGE) are rare signal sources that drop valuable engineering materials. This tool helps you find them in real time._
+
+---
+
 Monitor Elite Dangerous EDDN for High Grade Emission (HGE) signals and see how far they are from your current Commander location.
 
 This repository provides a small Python tool with a CLI and optional web dashboard that:
@@ -245,8 +251,6 @@ flake8 src/ tests/
 mypy src/
 ```
 
-If you'd like to help improve tests or refactor code, start by reading `DEVELOPMENT_NOTES.md` for targeted areas that would benefit from additional tests.
-
 ## Contributing
 
 Contributions are welcome. Please open an issue first if you plan larger changes. Keep changes small and focused; include tests for new behavior.
@@ -259,4 +263,4 @@ MIT — see the `LICENSE` file for details.
 
 ## Contact
 
-Author: CMDR Barateza <contact@example.com>
+Author: CMDR Barateza <advisory@barateza.org>
