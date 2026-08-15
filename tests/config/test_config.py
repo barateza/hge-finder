@@ -1,11 +1,12 @@
 """Tests for configuration module."""
 
+import importlib
 import pytest
 import os
 from pathlib import Path
 from unittest.mock import patch, MagicMock
 
-from src.config.settings import Settings, get_settings
+from src.config.settings import Settings, get_settings, _load_env_file
 
 
 class TestSettingsConfiguration:
@@ -217,3 +218,39 @@ class TestSettingsConfiguration:
             assert (settings.project_root / "pyproject.toml").exists() or \
                    (settings.project_root / "setup.py").exists() or \
                    (settings.project_root / ".git").exists()
+
+
+class TestEnvFileLoading:
+    """Test .env file loading via load_dotenv."""
+
+    def test_load_dotenv_called_at_import(self):
+        """Test that load_dotenv() runs when the settings module is imported."""
+        import src.config.settings as settings_module
+        with patch("dotenv.load_dotenv") as mock_load:
+            importlib.reload(settings_module)
+            mock_load.assert_called()
+        # Reload again to restore the real load_dotenv binding
+        importlib.reload(settings_module)
+
+    def test_env_file_values_loaded_into_settings(self, tmp_path, monkeypatch):
+        """Test that values from a .env file flow into Settings."""
+        (tmp_path / ".env").write_text("REFRESH_INTERVAL=45\n")
+        monkeypatch.chdir(tmp_path)
+        try:
+            _load_env_file()
+            settings = Settings()
+            assert settings.refresh_interval == 45
+        finally:
+            monkeypatch.delenv("REFRESH_INTERVAL", raising=False)
+
+    def test_env_file_does_not_override_existing_env(self, tmp_path, monkeypatch):
+        """Test that real environment variables take precedence over .env."""
+        monkeypatch.setenv("REFRESH_INTERVAL", "99")
+        (tmp_path / ".env").write_text("REFRESH_INTERVAL=45\n")
+        monkeypatch.chdir(tmp_path)
+        try:
+            _load_env_file()
+            settings = Settings()
+            assert settings.refresh_interval == 99
+        finally:
+            monkeypatch.delenv("REFRESH_INTERVAL", raising=False)

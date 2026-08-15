@@ -4,6 +4,24 @@ import os
 from pathlib import Path
 from typing import Optional
 
+from dotenv import find_dotenv, load_dotenv
+
+
+def _load_env_file() -> None:
+    """Load environment variables from .env files without overriding the environment.
+
+    Looks for a .env in the project root (where this module lives) and, as a
+    fallback, in the current working directory (covers installed console-script
+    usage where the user runs ``hge-notifier`` from their project folder).
+    ``load_dotenv`` never overrides variables already present in the environment
+    and is a no-op when no .env file exists.
+    """
+    load_dotenv(Path(__file__).resolve().parent.parent.parent / ".env")
+    load_dotenv(find_dotenv(usecwd=True))
+
+
+_load_env_file()
+
 
 class Settings:
     """Application settings loaded from environment variables and .env file."""
