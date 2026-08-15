@@ -44,3 +44,5 @@ data/
 coordinates.db
 /data
 data/coordinates.db
+/.agents/skills
+/.reasonix
