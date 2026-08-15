@@ -64,7 +64,11 @@ See `REAL_EDDN_USAGE.md` for more CLI options and VS Code debug configurations.
 
 ## Configuration
 
-Create a `.env` in the project root (or set environment variables). Example:
+Create a `.env` in the project root (or set environment variables). The app loads
+`.env` automatically on startup — a `.env` in the project root or in the current
+working directory is read with `python-dotenv`. Values already present in your
+environment (e.g. set in your shell or via a process manager) take precedence
+over `.env`. Example:
 
 ```env
 # IMPORTANT: Turn off mock mode to connect to real EDDN
