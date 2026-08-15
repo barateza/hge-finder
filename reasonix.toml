@@ -1,0 +1,2 @@
+[permissions]
+allow = ["Bash=cd /Users/gilsonsiqueira/hge-finder && python3 -c \"import dotenv; print('dotenv OK:', dotenv.__version__ if hasattr(dotenv, '__version__') else dotenv.__file__)\""]
